@@ -12,6 +12,10 @@ impl Module for ProgramCounter {
         }
     }
 
+    fn reset(&mut self) {
+        self.0 = 0;
+    }
+
     fn bus_write_flag(&self) -> ControlFlag {
         ControlFlag::CounterOut
     }

@@ -1,5 +1,7 @@
 mod modules;
+pub mod shareable;
 
+use std::io::BufRead;
 use modules::*;
 
 pub fn run_cycle<I>(modules: &mut [Box<dyn Module>], decoder: &mut I) -> bool
@@ -11,7 +13,7 @@ where
     if cw.has(ControlFlag::Hlt) {
         return false;
     }
-    eprintln!("cw: 0b{:016b}", cw.0);
+    eprintln!("cw: {}", cw);
     for module in modules.iter_mut() {
         module.pre_step(cw);
     }
@@ -34,24 +36,77 @@ where
     true
 }
 
+fn interactive_loop<I>(mut modules: Vec<Box<dyn Module>>, mut decoder: I)
+where
+    I: InstructionDecoder
+{
+    let stdin = std::io::stdin();
+    let mut input = stdin.lock();
+    let mut line = String::new();
+    loop {
+        let mut cw = decoder.decode();
+        decoder.step();
+        eprintln!("cw: {}", cw);
+        if cw.has(ControlFlag::Hlt) {
+            break;
+        }
+        for module in modules.iter_mut() {
+            module.pre_step(cw);
+        }
+        let mut bus = None;
+        for module in modules.iter_mut() {
+            bus = bus.or_else(|| module.bus_write(cw));
+        }
+        let bus = bus.unwrap_or(0);
+        for module in modules.iter_mut() {
+            module.step(cw, bus);
+        }
+
+        line.clear();
+        input.read_line(&mut line).unwrap();
+        match line.trim().as_ref() {
+            "q" | "quit" => break,
+            "reset" => {
+                for module in modules.iter_mut() {
+                    module.reset();
+                }
+                cw = ControlWord(0);
+            }
+            _ => (),
+        }
+
+        for module in modules.iter_mut() {
+            module.bus_read(cw, bus);
+        }
+
+        if cw.has(ControlFlag::NextInstruction) {
+            decoder.reset_counter();
+        }
+    }
+}
+
+fn write_program(ram: &mut [u8; 16]) {
+    ram[0x0] = 0x1e; // LDA 14
+    ram[0x1] = 0x2f; // ADD 15
+    ram[0x2] = 0xe0; // OUT
+    ram[0x3] = 0xf0; // HLT
+    ram[0xe] = 14;
+    ram[0xf] = 28;
+}
+
 fn main() {
     let a = Register::new(ControlFlag::ARegisterIn, ControlFlag::ARegisterOut);
     let b = Register::new_ro(ControlFlag::BRegisterIn);
-    let alu = Alu::new(a.get_ref(), b.get_ref());
+    let alu = Alu::new(a.share(), b.share());
     let output = OutputRegister(0);
     let address_register = Register::new_ro(ControlFlag::MemoryAddressIn);
-    let mut ram = Ram::new(address_register.get_ref());
-    ram.memory[0x0] = 0x1e; // LDA 14
-    ram.memory[0x1] = 0x2f; // ADD 15
-    ram.memory[0x2] = 0xe0; // OUT
-    ram.memory[0x3] = 0xf0; // HLT
-    ram.memory[0xe] = 14;
-    ram.memory[0xf] = 28;
+    let mut ram = Ram::new(address_register.share());
+    write_program(&mut ram.memory);
     let instruction_register = InstructionRegister::default();
-    let instruction = instruction_register.get_ref();
+    let instruction = instruction_register.share();
     let program_counter = ProgramCounter(0);
-    let mut decoder = SimpleInstructionDecoder::new(instruction);
-    let mut modules: Vec<Box<dyn Module>> = vec![
+    let decoder = BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
+    let modules: Vec<Box<dyn Module>> = vec![
         Box::new(a),
         Box::new(b),
         Box::new(alu),
@@ -61,9 +116,10 @@ fn main() {
         Box::new(instruction_register),
         Box::new(program_counter),
     ];
-    loop {
-        if !run_cycle(&mut modules, &mut decoder) {
-            break;
-        }
-    }
+    interactive_loop(modules, decoder);
+    // loop {
+    //     if !run_cycle(&mut modules, &mut decoder) {
+    //         break;
+    //     }
+    // }
 }

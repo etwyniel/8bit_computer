@@ -9,7 +9,7 @@ pub mod register;
 
 pub use alu::Alu;
 pub use control::{ControlFlag, ControlWord};
-pub use instruction_decoder::{InstructionDecoder, SimpleInstructionDecoder};
+pub use instruction_decoder::{InstructionDecoder, SimpleInstructionDecoder, BranchingInstructionDecoder};
 pub use instruction_register::InstructionRegister;
 pub use output_register::OutputRegister;
 pub use program_counter::ProgramCounter;
@@ -19,6 +19,7 @@ pub use register::Register;
 pub trait Module: std::fmt::Debug {
     fn pre_step(&mut self, _cw: ControlWord) {}
     fn step(&mut self, _cw: ControlWord, _bus: u8) {}
+    fn reset(&mut self);
 
     fn bus_read_flag(&self) -> ControlFlag {
         ControlFlag::Empty
@@ -27,6 +28,9 @@ pub trait Module: std::fmt::Debug {
         ControlFlag::Empty
     }
     fn read_from_bus(&mut self, _bus: u8) {}
+
+    /// Not guaranteed to run. Since it is invalid to put mutliple values on
+    /// the bus at once, this function can be short-circuited
     fn write_to_bus(&mut self) -> u8 {
         0
     }

@@ -1,34 +1,52 @@
 use super::{ControlFlag, ControlWord, Module};
-use std::cell::RefCell;
-use std::num::Wrapping;
-use std::rc::Rc;
+use crate::shareable::{Shareable, Shared};
 use std::default::Default;
+use std::num::Wrapping;
 
 #[derive(Debug)]
 pub struct Alu {
-    pub a: Rc<RefCell<u8>>,
-    pub b: Rc<RefCell<u8>>,
+    pub a: Shared<u8>,
+    pub b: Shared<u8>,
     pub result: u8,
-    pub carry: Rc<RefCell<bool>>,
-    pub zero: Rc<RefCell<bool>>,
+    pub carry: Shareable<bool>,
+    pub zero: Shareable<bool>
 }
 
 impl Alu {
-    pub fn new(a: Rc<RefCell<u8>>, b: Rc<RefCell<u8>>) -> Alu {
-        Alu { a, b, result: 0, carry: Default::default(), zero: Default::default() }
+    pub fn new(a: Shared<u8>, b: Shared<u8>) -> Alu {
+        Alu {
+            a,
+            b,
+            result: 0,
+            carry: Default::default(),
+            zero: Default::default(),
+        }
+    }
+
+    pub fn share_carry(&self) -> Shared<bool> {
+        self.carry.share()
+    }
+
+    pub fn share_zero(&self) -> Shared<bool> {
+        self.zero.share()
     }
 }
 
 impl Module for Alu {
     fn pre_step(&mut self, cw: ControlWord) {
-        let rhs = *self.b.borrow() as u16;
-        let Wrapping(res) = Wrapping(*self.a.borrow() as u16) + if cw.has(ControlFlag::Subtract) {
+        let rhs = u16::from(self.b.get());
+        let Wrapping(res) = Wrapping(u16::from(self.a.get())) + if cw.has(ControlFlag::Subtract) {
             Wrapping(!rhs) + Wrapping(1)
         } else {
             Wrapping(rhs)
         };
         self.result = res as u8;
-        self.carry.replace(res > 0xff);
+        self.carry.set(res > 0xff);
+    }
+
+    fn reset(&mut self) {
+        self.carry.set(false);
+        self.zero.set(false);
     }
 
     fn bus_write_flag(&self) -> ControlFlag {

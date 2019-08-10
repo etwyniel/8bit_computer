@@ -1,19 +1,22 @@
 use super::{ControlFlag, Module};
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::shareable::{Shareable, Shared};
 
 #[derive(Default, Debug)]
 pub struct InstructionRegister {
-    value: Rc<RefCell<u8>>,
+    value: Shareable<u8>,
 }
 
 impl InstructionRegister {
-    pub fn get_ref(&self) -> Rc<RefCell<u8>> {
-        Rc::clone(&self.value)
+    pub fn share(&self) -> Shared<u8> {
+        self.value.share()
     }
 }
 
 impl Module for InstructionRegister {
+    fn reset(&mut self) {
+        self.value.set(0);
+    }
+
     fn bus_write_flag(&self) -> ControlFlag {
         ControlFlag::InstructionRegisterOut
     }
@@ -23,10 +26,10 @@ impl Module for InstructionRegister {
     }
 
     fn write_to_bus(&mut self) -> u8 {
-        *self.value.borrow() & 0b1111
+        self.value.get() & 0b1111
     }
 
     fn read_from_bus(&mut self, bus: u8) {
-        self.value.replace(bus);
+        self.value.set(bus);
     }
 }

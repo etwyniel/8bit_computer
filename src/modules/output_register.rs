@@ -4,6 +4,10 @@ use super::{ControlFlag, Module};
 pub struct OutputRegister(pub u8);
 
 impl Module for OutputRegister {
+    fn reset(&mut self) {
+        self.0 = 0;
+    }
+
     fn bus_read_flag(&self) -> ControlFlag {
         ControlFlag::OutputRegisterIn
     }

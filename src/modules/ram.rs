@@ -1,20 +1,20 @@
 use super::{ControlFlag, ControlWord, Module};
-use std::cell::RefCell;
+use crate::shareable::{Shareable, Shared};
 use std::default::Default;
-use std::rc::Rc;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Ram {
-    address: Rc<RefCell<u8>>,
+    address: Shared<u8>,
     pub memory: [u8; 16],
-    byte: Rc<RefCell<u8>>,
+    byte: Shareable<u8>,
 }
 
 impl Ram {
-    pub fn new(address: Rc<RefCell<u8>>) -> Ram {
+    pub fn new(address: Shared<u8>) -> Ram {
         Ram {
             address,
-            ..Self::default()
+            memory: [0; 16],
+            byte: Default::default(),
         }
     }
 }
@@ -22,8 +22,10 @@ impl Ram {
 impl Module for Ram {
     fn pre_step(&mut self, _cw: ControlWord) {
         self.byte
-            .replace(self.memory[*self.address.borrow() as usize]);
+            .set(self.memory[self.address.get() as usize]);
     }
+
+    fn reset(&mut self) {}
 
     fn bus_read_flag(&self) -> ControlFlag {
         ControlFlag::RamIn
@@ -34,10 +36,10 @@ impl Module for Ram {
     }
 
     fn read_from_bus(&mut self, bus: u8) {
-        self.memory[*self.address.borrow() as usize] = bus;
+        self.memory[self.address.get() as usize] = bus;
     }
 
     fn write_to_bus(&mut self) -> u8 {
-        self.memory[*self.address.borrow() as usize]
+        self.byte.get()
     }
 }
