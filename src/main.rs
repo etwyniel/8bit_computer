@@ -44,6 +44,7 @@ where
     let mut input = stdin.lock();
     let mut line = String::new();
     loop {
+        println!("Decoding step n°{}", decoder.get_counter());
         let mut cw = decoder.decode();
         decoder.step();
         for module in modules.iter_mut() {
@@ -58,11 +59,7 @@ where
         for module in modules.iter() {
             println!("{}: {}", module.get_name(), module);
         }
-        eprintln!("cw: {}\nbus: {:08b}", cw, bus);
-
-        if cw.has(ControlFlag::Hlt) {
-            break;
-        }
+        println!("Control word: {}\nBus: {:08b}", cw, bus);
 
         for module in modules.iter_mut() {
             module.step(cw, bus);
@@ -79,6 +76,10 @@ where
                 cw = ControlWord(0);
             }
             _ => (),
+        }
+
+        if cw.has(ControlFlag::Hlt) {
+            break;
         }
 
         for module in modules.iter_mut() {
@@ -118,14 +119,14 @@ fn main() {
     let decoder =
         BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
     let modules: Vec<Box<dyn Module>> = vec![
+        Box::new(program_counter),
+        Box::new(instruction_register),
+        Box::new(address_register),
+        Box::new(ram),
         Box::new(a),
         Box::new(b),
         Box::new(alu),
         Box::new(output),
-        Box::new(ram),
-        Box::new(address_register),
-        Box::new(instruction_register),
-        Box::new(program_counter),
     ];
     interactive_loop(modules, decoder);
     // loop {
