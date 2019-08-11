@@ -1,8 +1,8 @@
 mod modules;
 pub mod shareable;
 
-use std::io::BufRead;
 use modules::*;
+use std::io::BufRead;
 
 pub fn run_cycle<I>(modules: &mut [Box<dyn Module>], decoder: &mut I) -> bool
 where
@@ -38,7 +38,7 @@ where
 
 fn interactive_loop<I>(mut modules: Vec<Box<dyn Module>>, mut decoder: I)
 where
-    I: InstructionDecoder
+    I: InstructionDecoder,
 {
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
@@ -46,10 +46,6 @@ where
     loop {
         let mut cw = decoder.decode();
         decoder.step();
-        eprintln!("cw: {}", cw);
-        if cw.has(ControlFlag::Hlt) {
-            break;
-        }
         for module in modules.iter_mut() {
             module.pre_step(cw);
         }
@@ -58,6 +54,16 @@ where
             bus = bus.or_else(|| module.bus_write(cw));
         }
         let bus = bus.unwrap_or(0);
+
+        for module in modules.iter() {
+            println!("{}: {}", module.get_name(), module);
+        }
+        eprintln!("cw: {}\nbus: {:08b}", cw, bus);
+
+        if cw.has(ControlFlag::Hlt) {
+            break;
+        }
+
         for module in modules.iter_mut() {
             module.step(cw, bus);
         }
@@ -95,17 +101,22 @@ fn write_program(ram: &mut [u8; 16]) {
 }
 
 fn main() {
-    let a = Register::new(ControlFlag::ARegisterIn, ControlFlag::ARegisterOut);
-    let b = Register::new_ro(ControlFlag::BRegisterIn);
+    let a = Register::new(
+        "A Register",
+        ControlFlag::ARegisterIn,
+        ControlFlag::ARegisterOut,
+    );
+    let b = Register::new_ro("B Register", ControlFlag::BRegisterIn);
     let alu = Alu::new(a.share(), b.share());
     let output = OutputRegister(0);
-    let address_register = Register::new_ro(ControlFlag::MemoryAddressIn);
+    let address_register = Register::new_ro("Address", ControlFlag::MemoryAddressIn);
     let mut ram = Ram::new(address_register.share());
     write_program(&mut ram.memory);
     let instruction_register = InstructionRegister::default();
     let instruction = instruction_register.share();
     let program_counter = ProgramCounter(0);
-    let decoder = BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
+    let decoder =
+        BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
     let modules: Vec<Box<dyn Module>> = vec![
         Box::new(a),
         Box::new(b),

@@ -1,6 +1,7 @@
 use super::{ControlFlag, ControlWord, Module};
 use crate::shareable::{Shareable, Shared};
 use std::default::Default;
+use std::fmt::{self, Display, Formatter};
 use std::num::Wrapping;
 
 #[derive(Debug)]
@@ -9,7 +10,7 @@ pub struct Alu {
     pub b: Shared<u8>,
     pub result: u8,
     pub carry: Shareable<bool>,
-    pub zero: Shareable<bool>
+    pub zero: Shareable<bool>,
 }
 
 impl Alu {
@@ -33,6 +34,10 @@ impl Alu {
 }
 
 impl Module for Alu {
+    fn get_name(&self) -> &'static str {
+        "ALU"
+    }
+
     fn pre_step(&mut self, cw: ControlWord) {
         let rhs = u16::from(self.b.get());
         let Wrapping(res) = Wrapping(u16::from(self.a.get())) + if cw.has(ControlFlag::Subtract) {
@@ -55,5 +60,11 @@ impl Module for Alu {
 
     fn write_to_bus(&mut self) -> u8 {
         self.result
+    }
+}
+
+impl Display for Alu {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:08b}", self.result)
     }
 }

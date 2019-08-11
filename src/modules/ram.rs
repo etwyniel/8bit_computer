@@ -1,6 +1,7 @@
 use super::{ControlFlag, ControlWord, Module};
 use crate::shareable::{Shareable, Shared};
 use std::default::Default;
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub struct Ram {
@@ -20,9 +21,12 @@ impl Ram {
 }
 
 impl Module for Ram {
+    fn get_name(&self) -> &'static str {
+        "RAM"
+    }
+
     fn pre_step(&mut self, _cw: ControlWord) {
-        self.byte
-            .set(self.memory[self.address.get() as usize]);
+        self.byte.set(self.memory[self.address.get() as usize]);
     }
 
     fn reset(&mut self) {}
@@ -41,5 +45,11 @@ impl Module for Ram {
 
     fn write_to_bus(&mut self) -> u8 {
         self.byte.get()
+    }
+}
+
+impl Display for Ram {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:08b}", self.byte.get())
     }
 }

@@ -9,14 +9,18 @@ pub mod register;
 
 pub use alu::Alu;
 pub use control::{ControlFlag, ControlWord};
-pub use instruction_decoder::{InstructionDecoder, SimpleInstructionDecoder, BranchingInstructionDecoder};
+pub use instruction_decoder::{
+    BranchingInstructionDecoder, InstructionDecoder, SimpleInstructionDecoder,
+};
 pub use instruction_register::InstructionRegister;
 pub use output_register::OutputRegister;
 pub use program_counter::ProgramCounter;
 pub use ram::Ram;
 pub use register::Register;
 
-pub trait Module: std::fmt::Debug {
+pub trait Module: std::fmt::Debug + std::fmt::Display {
+    fn get_name(&self) -> &str;
+
     fn pre_step(&mut self, _cw: ControlWord) {}
     fn step(&mut self, _cw: ControlWord, _bus: u8) {}
     fn reset(&mut self);

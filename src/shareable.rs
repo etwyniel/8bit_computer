@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use std::cell::Cell;
+use std::rc::Rc;
 
 #[derive(Debug, Default)]
 pub struct Shareable<T: Copy>(Rc<Cell<T>>);

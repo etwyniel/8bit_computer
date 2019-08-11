@@ -1,10 +1,15 @@
 use super::{ControlFlag, ControlWord, Module};
+use std::fmt::{self, Display, Formatter};
 use std::num::Wrapping;
 
 #[derive(Debug)]
 pub struct ProgramCounter(pub u8);
 
 impl Module for ProgramCounter {
+    fn get_name(&self) -> &'static str {
+        "Program Counter"
+    }
+
     fn step(&mut self, cw: ControlWord, _bus: u8) {
         if cw.has(ControlFlag::CounterEnable) {
             let Wrapping(res) = Wrapping(self.0) + Wrapping(1);
@@ -16,19 +21,25 @@ impl Module for ProgramCounter {
         self.0 = 0;
     }
 
+    fn bus_read_flag(&self) -> ControlFlag {
+        ControlFlag::Jump
+    }
+
     fn bus_write_flag(&self) -> ControlFlag {
         ControlFlag::CounterOut
     }
 
-    fn bus_read_flag(&self) -> ControlFlag {
-        ControlFlag::Jump
+    fn read_from_bus(&mut self, bus: u8) {
+        self.0 = bus;
     }
 
     fn write_to_bus(&mut self) -> u8 {
         self.0
     }
+}
 
-    fn read_from_bus(&mut self, bus: u8) {
-        self.0 = bus;
+impl Display for ProgramCounter {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:04b}", self.0)
     }
 }

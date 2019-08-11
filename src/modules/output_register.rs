@@ -1,9 +1,14 @@
 use super::{ControlFlag, Module};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Default, Debug)]
 pub struct OutputRegister(pub u8);
 
 impl Module for OutputRegister {
+    fn get_name(&self) -> &'static str {
+        "Output"
+    }
+
     fn reset(&mut self) {
         self.0 = 0;
     }
@@ -15,5 +20,11 @@ impl Module for OutputRegister {
     fn read_from_bus(&mut self, bus: u8) {
         self.0 = bus;
         println!("Output: {}", self.0);
+    }
+}
+
+impl Display for OutputRegister {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }

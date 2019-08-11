@@ -1,6 +1,5 @@
-use std::ops::BitOr;
 use std::fmt::{self, Display, Formatter};
-use crate::modules::control::ControlFlag::NextInstruction;
+use std::ops::BitOr;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]

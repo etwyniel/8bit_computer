@@ -1,5 +1,6 @@
 use super::{ControlFlag, Module};
 use crate::shareable::{Shareable, Shared};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Default, Debug)]
 pub struct InstructionRegister {
@@ -13,6 +14,10 @@ impl InstructionRegister {
 }
 
 impl Module for InstructionRegister {
+    fn get_name(&self) -> &'static str {
+        "Instruction Register"
+    }
+
     fn reset(&mut self) {
         self.value.set(0);
     }
@@ -31,5 +36,12 @@ impl Module for InstructionRegister {
 
     fn read_from_bus(&mut self, bus: u8) {
         self.value.set(bus);
+    }
+}
+
+impl Display for InstructionRegister {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let value = self.value.get();
+        write!(f, "{:04b} {:04b}", value >> 4, value & 0xf)
     }
 }

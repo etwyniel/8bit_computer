@@ -1,6 +1,5 @@
 use super::{ControlFlag, ControlWord};
 use crate::shareable::Shared;
-use crate::write_program;
 
 /// Implementors are expected to own references to the necessary registers
 pub trait InstructionDecoder {
@@ -83,11 +82,7 @@ pub struct BranchingInstructionDecoder {
 }
 
 impl BranchingInstructionDecoder {
-    pub fn new(
-        instruction_register: Shared<u8>,
-        carry: Shared<bool>,
-        zero: Shared<bool>,
-    ) -> Self {
+    pub fn new(instruction_register: Shared<u8>, carry: Shared<bool>, zero: Shared<bool>) -> Self {
         BranchingInstructionDecoder {
             counter: 0,
             instruction_register,
