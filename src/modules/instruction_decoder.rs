@@ -5,6 +5,7 @@ use crate::shareable::Shared;
 pub trait InstructionDecoder {
     fn decode(&self) -> ControlWord;
     fn step(&mut self);
+    fn get_counter(&self) -> usize;
     fn reset_counter(&mut self);
 }
 
@@ -67,6 +68,10 @@ impl InstructionDecoder for SimpleInstructionDecoder {
 
     fn step(&mut self) {
         self.counter = (self.counter + 1) % 5;
+    }
+
+    fn get_counter(&self) -> usize {
+        self.counter as usize
     }
 
     fn reset_counter(&mut self) {
@@ -144,6 +149,10 @@ impl InstructionDecoder for BranchingInstructionDecoder {
 
     fn step(&mut self) {
         self.counter = (self.counter + 1) % 5;
+    }
+
+    fn get_counter(&self) -> usize {
+        self.counter as usize
     }
 
     fn reset_counter(&mut self) {

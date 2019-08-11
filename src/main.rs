@@ -36,6 +36,13 @@ where
     true
 }
 
+fn pretty_print_output(lines: &[(String, String)]) {
+    let longest = lines.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
+    for line in lines {
+        println!("\x1b[1;32m{:>width$}\x1b[0m {}", &line.0, &line.1, width = longest);
+    }
+}
+
 fn interactive_loop<I>(mut modules: Vec<Box<dyn Module>>, mut decoder: I)
 where
     I: InstructionDecoder,
@@ -43,7 +50,9 @@ where
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
     let mut line = String::new();
+    let mut output = Vec::with_capacity(modules.len() + 2);
     loop {
+        println!("Decoding step n°{}", decoder.get_counter());
         let mut cw = decoder.decode();
         decoder.step();
         for module in modules.iter_mut() {
@@ -55,14 +64,13 @@ where
         }
         let bus = bus.unwrap_or(0);
 
+        output.clear();
         for module in modules.iter() {
-            println!("{}: {}", module.get_name(), module);
+            output.push((module.get_name().to_string(), format!("{}", module)));
         }
-        eprintln!("cw: {}\nbus: {:08b}", cw, bus);
-
-        if cw.has(ControlFlag::Hlt) {
-            break;
-        }
+        output.push(("Control word".to_string(), format!("{}", cw)));
+        output.push(("Bus".to_string(), format!("{:08b}", bus)));
+        pretty_print_output(&output);
 
         for module in modules.iter_mut() {
             module.step(cw, bus);
@@ -79,6 +87,10 @@ where
                 cw = ControlWord(0);
             }
             _ => (),
+        }
+
+        if cw.has(ControlFlag::Hlt) {
+            break;
         }
 
         for module in modules.iter_mut() {
@@ -118,14 +130,14 @@ fn main() {
     let decoder =
         BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
     let modules: Vec<Box<dyn Module>> = vec![
+        Box::new(program_counter),
+        Box::new(instruction_register),
+        Box::new(address_register),
+        Box::new(ram),
         Box::new(a),
         Box::new(b),
         Box::new(alu),
         Box::new(output),
-        Box::new(ram),
-        Box::new(address_register),
-        Box::new(instruction_register),
-        Box::new(program_counter),
     ];
     interactive_loop(modules, decoder);
     // loop {
