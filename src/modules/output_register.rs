@@ -19,7 +19,6 @@ impl Module for OutputRegister {
 
     fn read_from_bus(&mut self, bus: u8) {
         self.0 = bus;
-        println!("Output: {}", self.0);
     }
 }
 

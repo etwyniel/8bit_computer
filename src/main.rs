@@ -36,10 +36,34 @@ where
     true
 }
 
+#[cfg(unix)]
+fn use_color() -> bool {
+    use std::os::unix::io::{AsRawFd, RawFd};
+
+    extern "C" {
+        fn isatty(fd: RawFd) -> std::os::raw::c_int;
+    }
+    unsafe { isatty(std::io::stdout().as_raw_fd()) > 0 }
+}
+
+#[cfg(not(unix))]
+fn use_color() -> bool {
+    false
+}
+
 fn pretty_print_output(lines: &[(String, String)]) {
     let longest = lines.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
-    for line in lines {
-        println!("\x1b[1;32m{:>width$}\x1b[0m {}", &line.0, &line.1, width = longest);
+    for (ref name, ref contents) in lines {
+        if use_color() {
+            println!(
+                "\x1b[1;32m{:>width$}\x1b[0m {}",
+                name,
+                contents,
+                width = longest
+            );
+        } else {
+            println!("{:>width$} {}", name, contents, width = longest);
+        }
     }
 }
 
@@ -52,7 +76,8 @@ where
     let mut line = String::new();
     let mut output = Vec::with_capacity(modules.len() + 2);
     loop {
-        println!("Decoding step n°{}", decoder.get_counter());
+        output.clear();
+        output.push(("Decoding step".to_string(), decoder.get_counter().to_string()));
         let mut cw = decoder.decode();
         decoder.step();
         for module in modules.iter_mut() {
@@ -64,7 +89,6 @@ where
         }
         let bus = bus.unwrap_or(0);
 
-        output.clear();
         for module in modules.iter() {
             output.push((module.get_name().to_string(), format!("{}", module)));
         }
