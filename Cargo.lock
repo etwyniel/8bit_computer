@@ -78,7 +78,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "breadboard_8bit"
 version = "0.1.0"
 dependencies = [
+ "piston2d-gfx_graphics 0.61.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "piston_window 0.98.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusttype 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

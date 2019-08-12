@@ -1,5 +1,7 @@
 use crate::modules::{ControlWord, Module, EmptyModule};
 use piston_window::*;
+use rusttype::Font;
+use gfx_graphics::{TextureContext, TextureSettings};
 
 pub enum VisualRepresentation {
     Text(String),
@@ -210,4 +212,14 @@ pub fn display_cw(cw: ControlWord, transform: [[f64; 3]; 2], glyphs: &mut Glyphs
         glyphs,
         g,
     );
+}
+
+const FONT_DATA: &[u8] = include_bytes!("../assets/FiraSans-Regular.ttf");
+
+pub fn load_font(window: &mut PistonWindow) -> Glyphs {
+    let font: Font<'static> = Font::from_bytes(FONT_DATA).unwrap();
+    Glyphs::from_font(font, TextureContext {
+        factory: window.factory.clone(),
+        encoder: window.factory.create_command_buffer().into()
+    }, TextureSettings::new())
 }

@@ -106,9 +106,7 @@ where
     I: InstructionDecoder,
 {
     let mut window = init_window(modules.len());
-    let ref mut glyphs = window
-        .load_font("assets/FiraSans-Regular.ttf")
-        .expect("Could not load font");
+    let ref mut glyphs = load_font(&mut window);
     let mut output = Vec::with_capacity(modules.len() + 2);
     let mut cw = ControlWord(0);
     let mut bus = 0;
@@ -165,6 +163,7 @@ where
     }
 }
 
+#[allow(unused)]
 fn write_program(ram: &mut [u8; 16]) {
     ram[0x0] = 0x1e; // LDA 14
     ram[0x1] = 0x2f; // ADD 15

@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 piston_window = "0.98.0"
+rusttype = "0.7"
+piston2d-gfx_graphics = "0.61"
