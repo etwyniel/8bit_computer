@@ -5,7 +5,6 @@ pub mod shareable;
 use graphics::*;
 use modules::*;
 use piston_window::*;
-use std::time::Instant;
 
 type Modules = Vec<Box<dyn ModuleGraphic>>;
 
@@ -27,6 +26,9 @@ fn use_color() -> bool {
 fn pretty_print_output(lines: &[(String, String)]) {
     let longest = lines.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
     for (ref name, ref contents) in lines {
+        if name.is_empty() && contents.is_empty() {
+            continue;
+        }
         if use_color() {
             println!(
                 "\x1b[1;32m{:>width$}\x1b[0m {}",
@@ -56,6 +58,7 @@ where
         module.bus_read(cw, bus);
     }
 
+    decoder.step();
     if cw.has(ControlFlag::NextInstruction) {
         decoder.reset_counter();
     }
@@ -76,11 +79,6 @@ fn pre_step<I: InstructionDecoder>(
     }
     let bus = maybe_bus.unwrap_or(0);
     output.clear();
-    output.push((
-        "Decoding step".to_string(),
-        decoder.get_counter().to_string(),
-    ));
-    decoder.step();
 
     for module in modules.iter() {
         output.push((module.get_name().to_string(), format!("{}", module)));
@@ -133,7 +131,7 @@ where
             display_cw(
                 cw,
                 c.transform
-                    .trans(0.0, (MODULE_HEIGHT * modules.len() / 2) as f64),
+                    .trans(0.0, (MODULE_HEIGHT * (modules.len() / 2 + modules.len() % 2)) as f64),
                 glyphs,
                 g,
             );
@@ -205,15 +203,18 @@ fn main() {
     let program_counter = ProgramCounter(0);
     let decoder =
         BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
+    let decoder_step = DecoderStep(decoder.share_counter());
     let modules: Modules = vec![
         Box::new(program_counter),
         Box::new(address_register),
         Box::new(ram),
         Box::new(instruction_register),
+        Box::new(decoder_step),
         Box::new(a),
         Box::new(alu),
         Box::new(b),
         Box::new(output),
+        Box::new(EmptyModule),
     ];
     interactive_loop(modules, decoder);
 }

@@ -1,5 +1,24 @@
-use crate::modules::{ControlWord, Module};
+use crate::modules::{ControlWord, Module, EmptyModule};
 use piston_window::*;
+
+pub enum VisualRepresentation {
+    Text(String),
+    LedN(usize, u8, LedColor),
+    LedByte(u8, LedColor),
+    LedHalf(u8, LedColor),
+    LedSplit(u8, LedColor, LedColor),
+    Empty,
+}
+
+pub trait ModuleGraphic: Module {
+    fn representation(&self) -> VisualRepresentation;
+}
+
+impl ModuleGraphic for EmptyModule {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::Empty
+    }
+}
 
 const FONT_SIZE: u32 = 40;
 
@@ -65,13 +84,6 @@ impl Default for LedColor {
     }
 }
 
-pub enum VisualRepresentation {
-    Text(String),
-    LedByte(u8, LedColor),
-    LedHalf(u8, LedColor),
-    LedSplit(u8, LedColor, LedColor),
-}
-
 impl VisualRepresentation {
     pub fn led(byte: u8) -> VisualRepresentation {
         VisualRepresentation::LedByte(byte, LedColor::default())
@@ -82,6 +94,9 @@ impl VisualRepresentation {
         match self {
             Text(s) => {
                 write(&s, glyphs, transform, g);
+            }
+            LedN(value, num_bits, color) => {
+                draw_leds(value, num_bits, color, transform, None, glyphs, g);
             }
             LedByte(byte, color) => {
                 draw_leds(byte as usize, 8, color, transform, None, glyphs, g);
@@ -94,12 +109,9 @@ impl VisualRepresentation {
                     draw_leds((byte >> 4) as usize, 4, color1, transform, None, glyphs, g);
                 draw_leds(byte as usize, 4, color2, lsb_transform, None, glyphs, g);
             }
+            Empty => (),
         }
     }
-}
-
-pub trait ModuleGraphic: Module {
-    fn representation(&self) -> VisualRepresentation;
 }
 
 pub const MODULE_WIDTH: usize = 170;
@@ -113,9 +125,10 @@ pub fn display_modules(
     c: Context,
     g: &mut G2d,
 ) {
+    let n_lines = modules.len() / 2 + modules.len() % 2;
     for (index, module) in modules.iter().enumerate() {
-        let top_left_y = (index % (modules.len() / 2)) * MODULE_HEIGHT;
-        let top_left_x = if index >= modules.len() / 2 {
+        let top_left_y = (index % n_lines) * MODULE_HEIGHT;
+        let top_left_x = if index >= n_lines {
             MODULE_WIDTH + BUS_WIDTH
         } else {
             0
@@ -134,7 +147,7 @@ pub fn display_modules(
 
 pub fn init_window(n_modules: usize) -> PistonWindow {
     let width = 2 * MODULE_WIDTH + BUS_WIDTH;
-    let height = n_modules / 2 * MODULE_HEIGHT + CONTROL_HEIGHT;
+    let height = (n_modules / 2 + n_modules % 2) * MODULE_HEIGHT + CONTROL_HEIGHT;
     WindowSettings::new("8bit computer", [width as f64, height as f64])
         .resizable(false)
         .exit_on_esc(true)
@@ -156,7 +169,8 @@ pub fn draw_lines(n_modules: usize, c: Context, g: &mut G2d) {
             );
         };
     }
-    let vline = [0.0, 0.0, 0.0, ((n_modules / 2) * MODULE_HEIGHT) as f64];
+    let n_lines = (n_modules / 2) + (n_modules % 2);
+    let vline = [0.0, 0.0, 0.0, (n_lines * MODULE_HEIGHT) as f64];
     let hline = [0.0, 0.0, MODULE_WIDTH as f64, 0.0];
     let bus_line = [0.0, 0.0, BUS_WIDTH as f64, 0.0];
     line!(vline, 0.0, 0.0);
@@ -164,8 +178,8 @@ pub fn draw_lines(n_modules: usize, c: Context, g: &mut G2d) {
     line!(vline, MODULE_WIDTH + BUS_WIDTH, 0.0);
     line!(vline, MODULE_WIDTH * 2 + BUS_WIDTH, 0.0);
     line!(bus_line, MODULE_WIDTH, 0.0);
-    line!(bus_line, MODULE_WIDTH, MODULE_HEIGHT * n_modules / 2);
-    for lnum in 0..(n_modules / 2 + 1) {
+    line!(bus_line, MODULE_WIDTH, MODULE_HEIGHT * n_lines);
+    for lnum in 0..(n_lines + 1) {
         line!(hline, 0.0, MODULE_HEIGHT * lnum);
         line!(hline, MODULE_WIDTH + BUS_WIDTH, MODULE_HEIGHT * lnum);
     }

@@ -1,5 +1,7 @@
-use super::{ControlFlag, ControlWord};
-use crate::shareable::Shared;
+use std::fmt::{self, Display, Formatter};
+use super::{Module, ControlFlag, ControlWord};
+use crate::shareable::{Shareable, Shared};
+use crate::graphics::*;
 
 /// Implementors are expected to own references to the necessary registers
 pub trait InstructionDecoder {
@@ -82,7 +84,7 @@ impl InstructionDecoder for SimpleInstructionDecoder {
 }
 
 pub struct BranchingInstructionDecoder {
-    counter: u8,
+    counter: Shareable<u8>,
     instruction_register: Shared<u8>,
     carry: Shared<bool>,
     zero: Shared<bool>,
@@ -91,11 +93,15 @@ pub struct BranchingInstructionDecoder {
 impl BranchingInstructionDecoder {
     pub fn new(instruction_register: Shared<u8>, carry: Shared<bool>, zero: Shared<bool>) -> Self {
         BranchingInstructionDecoder {
-            counter: 0,
+            counter: Shareable::new(0),
             instruction_register,
             carry,
             zero,
         }
+    }
+
+    pub fn share_counter(&self) -> Shared<u8> {
+        self.counter.share()
     }
 }
 
@@ -106,7 +112,7 @@ impl InstructionDecoder for BranchingInstructionDecoder {
         let instruction = self.instruction_register.get() >> 4;
         let carry = self.carry.get();
         let zero = self.zero.get();
-        match (instruction, self.counter) {
+        match (instruction, self.counter.get()) {
             (_, 0) => CounterOut | MemoryAddressIn,
             (_, 1) => RamOut | InstructionRegisterIn | CounterEnable,
 
@@ -152,14 +158,37 @@ impl InstructionDecoder for BranchingInstructionDecoder {
     }
 
     fn step(&mut self) {
-        self.counter = (self.counter + 1) % 5;
+        self.counter.set((self.counter.get() + 1) % 5);
     }
 
     fn get_counter(&self) -> usize {
-        self.counter as usize
+        self.counter.get() as usize
     }
 
     fn reset_counter(&mut self) {
-        self.counter = 0;
+        self.counter.set(0);
+    }
+}
+
+#[derive(Debug)]
+pub struct DecoderStep(pub Shared<u8>);
+
+impl Module for DecoderStep {
+    fn get_name(&self) -> &'static str {
+        "Decoder Step"
+    }
+
+    fn reset(&mut self) {}
+}
+
+impl Display for DecoderStep {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:03b}", self.0.get())
+    }
+}
+
+impl ModuleGraphic for DecoderStep {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::LedN(self.0.get() as usize, 3, LedColor::default())
     }
 }
