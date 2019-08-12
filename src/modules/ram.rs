@@ -1,4 +1,5 @@
-use super::{ControlFlag, ControlWord, Module};
+use super::*;
+use crate::graphics::*;
 use crate::shareable::{Shareable, Shared};
 use std::default::Default;
 use std::fmt::{self, Display, Formatter};
@@ -22,7 +23,7 @@ impl Ram {
 
 impl Module for Ram {
     fn get_name(&self) -> &'static str {
-        "RAM"
+        "Memory Contents"
     }
 
     fn pre_step(&mut self, _cw: ControlWord) {
@@ -45,6 +46,12 @@ impl Module for Ram {
 
     fn write_to_bus(&mut self) -> u8 {
         self.byte.get()
+    }
+}
+
+impl ModuleGraphic for Ram {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::led(self.byte.get())
     }
 }
 

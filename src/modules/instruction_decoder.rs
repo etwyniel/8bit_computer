@@ -15,6 +15,7 @@ pub struct SimpleInstructionDecoder {
     instruction_register: Shared<u8>,
 }
 
+#[allow(unused)]
 impl SimpleInstructionDecoder {
     pub fn new(instruction_register: Shared<u8>) -> SimpleInstructionDecoder {
         SimpleInstructionDecoder {
@@ -24,6 +25,7 @@ impl SimpleInstructionDecoder {
     }
 }
 
+#[allow(unused)]
 impl InstructionDecoder for SimpleInstructionDecoder {
     fn decode(&self) -> ControlWord {
         use ControlFlag::*;
@@ -134,9 +136,11 @@ impl InstructionDecoder for BranchingInstructionDecoder {
 
             // JC
             (0x7, 2) if carry => InstructionRegisterOut | Jump | NextInstruction,
+            (0x7, 2) => Empty | NextInstruction,
 
             // JZ
             (0x8, 2) if zero => InstructionRegisterOut | Jump | NextInstruction,
+            (0x8, 2) => Empty | NextInstruction,
 
             // OUT
             (0xe, 2) => ARegisterOut | OutputRegisterIn | NextInstruction,

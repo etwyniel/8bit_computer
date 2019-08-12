@@ -1,4 +1,5 @@
-use super::{ControlFlag, Module};
+use super::*;
+use crate::graphics::*;
 use crate::shareable::{Shareable, Shared};
 use std::fmt::{self, Display, Formatter};
 
@@ -27,10 +28,6 @@ impl Register {
     pub fn share(&self) -> Shared<u8> {
         self.value.share()
     }
-
-    pub fn set(&mut self, value: u8) {
-        self.value.set(value);
-    }
 }
 
 impl Module for Register {
@@ -56,6 +53,12 @@ impl Module for Register {
 
     fn write_to_bus(&mut self) -> u8 {
         self.value.get()
+    }
+}
+
+impl ModuleGraphic for Register {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::led(self.value.get())
     }
 }
 

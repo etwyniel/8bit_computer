@@ -1,4 +1,5 @@
-use super::{ControlFlag, Module};
+use super::*;
+use crate::graphics::*;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Default, Debug)]
@@ -19,6 +20,12 @@ impl Module for OutputRegister {
 
     fn read_from_bus(&mut self, bus: u8) {
         self.0 = bus;
+    }
+}
+
+impl ModuleGraphic for OutputRegister {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::Text(format!("{}", self.0))
     }
 }
 

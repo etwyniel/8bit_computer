@@ -1,4 +1,5 @@
-use super::{ControlFlag, Module};
+use super::*;
+use crate::graphics::*;
 use crate::shareable::{Shareable, Shared};
 use std::fmt::{self, Display, Formatter};
 
@@ -36,6 +37,16 @@ impl Module for InstructionRegister {
 
     fn read_from_bus(&mut self, bus: u8) {
         self.value.set(bus);
+    }
+}
+
+impl ModuleGraphic for InstructionRegister {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::LedSplit(
+            self.value.get(),
+            LedColor::new(0.3, 0.3, 1.0),
+            LedColor::new(0.9, 0.85, 0.0),
+        )
     }
 }
 
