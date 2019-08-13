@@ -113,6 +113,6 @@ const FONT_DATA: &[u8] = include_bytes!("../assets/FiraSans-Regular.ttf");
 const FONT_SIZE: u32 = 40;
 
 pub const CW_LABELS: [&str; 32] = [
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "NI", "FI", "J", "CO", "CE", "OI",
-    "BI", "SU", "ΣO", "AO", "AI", "II", "IO", "RO", "RI", "MI", "HLT",
+    "HLT", "MI", "RI", "RO", "IO", "II", "AI", "AO", "ΣO", "SU", "BI", "OI", "CE", "CO", "J",
+    "FI", "NI", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 ];

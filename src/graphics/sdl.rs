@@ -113,10 +113,10 @@ impl<'a> GraphicsState<'a> {
                 ((255.0 * r) as u8, (255.0 * g) as u8, (255.0 * b) as u8),
             )?;
             if let Some(labels) = labels {
-                let (x, mut y) = (x - 3, y + 10);
-                for c in labels[(num_bits - bit) as usize].chars() {
+                let (x, mut y) = (x - 3, y + 6);
+                for c in labels[bit as usize - 1].chars() {
                     self.write(&c.to_string(), x, y)?;
-                    y += 12;
+                    y += 11;
                 }
             }
         }
@@ -164,7 +164,7 @@ impl<'a> GraphicsState<'a> {
 
 pub fn load_font(context: &Sdl2TtfContext) -> Result<Font<'_, 'static>, String> {
     let rwops = RWops::from_bytes(FONT_DATA)?;
-    context.load_font_from_rwops(rwops, FONT_SIZE as u16 / 4)
+    context.load_font_from_rwops(rwops, FONT_SIZE as u16 / 3)
 }
 
 pub fn init_window(video: &VideoSubsystem, n_modules: usize) -> Result<Window, String> {

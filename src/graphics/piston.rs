@@ -57,7 +57,7 @@ impl<'a, 'b: 'a> GraphicsState<'a, G2d<'b>> {
             self.draw_dot(transform, color);
             if let Some(labels) = labels {
                 let mut transform = transform.trans(0.0, 18.0);
-                for c in labels[(num_bits - bit) as usize].chars() {
+                for c in labels[bit as usize - 1].chars() {
                     self.write(&c.to_string(), transform);
                     transform = transform.trans(0.0, 12.0);
                 }

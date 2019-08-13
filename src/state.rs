@@ -1,7 +1,7 @@
+use atty::Stream;
 use crate::graphics::GraphicalModule;
 use crate::modules::*;
 use std::default::Default;
-use atty::Stream;
 
 type Modules = Vec<Box<dyn GraphicalModule>>;
 
@@ -15,6 +15,12 @@ pub struct BreadboardState<I: InstructionDecoder = BranchingInstructionDecoder> 
 
 impl Default for BreadboardState {
     fn default() -> Self {
+        Self::default_with_ram(write_sample_program)
+    }
+}
+
+impl BreadboardState<BranchingInstructionDecoder> {
+    pub fn default_with_ram<F: FnOnce(&mut [u8; 16])>(f: F) -> Self {
         let a = Register::new(
             "A Register",
             ControlFlag::ARegisterIn,
@@ -25,7 +31,7 @@ impl Default for BreadboardState {
         let output = OutputRegister(0);
         let address_register = Register::new_ro("Memory Address", ControlFlag::MemoryAddressIn);
         let mut ram = Ram::new(address_register.share());
-        write_sample_program(&mut ram.memory);
+        f(&mut ram.memory);
         let instruction_register = InstructionRegister::default();
         let instruction = instruction_register.share();
         let program_counter = ProgramCounter(0);
