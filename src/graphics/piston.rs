@@ -66,7 +66,7 @@ impl<'a, 'b: 'a> GraphicsState<'a, G2d<'b>> {
         transform.trans(f64::from(num_bits) * 12.0, 0.0)
     }
 
-    pub fn display_modules(&mut self, modules: &[Box<dyn ModuleGraphic>]) {
+    pub fn display_modules(&mut self, modules: &[Box<dyn GraphicalModule>]) {
         let n_lines = modules.len() / 2 + modules.len() % 2;
         for (index, module) in modules.iter().enumerate() {
             let top_left_y = (index % n_lines) * MODULE_HEIGHT;

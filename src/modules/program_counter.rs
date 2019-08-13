@@ -39,7 +39,7 @@ impl Module for ProgramCounter {
     }
 }
 
-impl ModuleGraphic for ProgramCounter {
+impl GraphicalModule for ProgramCounter {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::LedHalf(self.0, LedColor::new(0.0, 1.0, 0.0))
     }

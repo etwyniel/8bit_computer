@@ -23,7 +23,7 @@ impl Module for OutputRegister {
     }
 }
 
-impl ModuleGraphic for OutputRegister {
+impl GraphicalModule for OutputRegister {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::Text(format!("{}", self.0))
     }

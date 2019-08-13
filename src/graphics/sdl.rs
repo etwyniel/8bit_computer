@@ -146,7 +146,7 @@ impl<'a> GraphicsState<'a> {
         Ok(())
     }
 
-    pub fn display_modules(&mut self, modules: &[Box<dyn ModuleGraphic>]) -> Result<(), String> {
+    pub fn display_modules(&mut self, modules: &[Box<dyn GraphicalModule>]) -> Result<(), String> {
         for (index, module) in modules.iter().enumerate() {
             let top_left_y = (index % self.n_lines as usize) * MODULE_HEIGHT;
             let top_left_x = if index >= self.n_lines as usize {

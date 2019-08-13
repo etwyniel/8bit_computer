@@ -1,9 +1,9 @@
-use crate::graphics::ModuleGraphic;
+use crate::graphics::GraphicalModule;
 use crate::modules::*;
 use std::default::Default;
 use atty::Stream;
 
-type Modules = Vec<Box<dyn ModuleGraphic>>;
+type Modules = Vec<Box<dyn GraphicalModule>>;
 
 pub struct BreadboardState<I: InstructionDecoder = BranchingInstructionDecoder> {
     modules: Modules,

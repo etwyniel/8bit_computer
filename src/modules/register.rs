@@ -56,7 +56,7 @@ impl Module for Register {
     }
 }
 
-impl ModuleGraphic for Register {
+impl GraphicalModule for Register {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::led(self.value.get())
     }

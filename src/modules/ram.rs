@@ -49,7 +49,7 @@ impl Module for Ram {
     }
 }
 
-impl ModuleGraphic for Ram {
+impl GraphicalModule for Ram {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::led(self.byte.get())
     }

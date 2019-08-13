@@ -40,7 +40,7 @@ impl Module for InstructionRegister {
     }
 }
 
-impl ModuleGraphic for InstructionRegister {
+impl GraphicalModule for InstructionRegister {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::LedSplit(
             self.value.get(),

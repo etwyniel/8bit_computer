@@ -187,7 +187,7 @@ impl Display for DecoderStep {
     }
 }
 
-impl ModuleGraphic for DecoderStep {
+impl GraphicalModule for DecoderStep {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::LedN(self.0.get() as usize, 3, LedColor::default())
     }

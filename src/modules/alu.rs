@@ -64,7 +64,7 @@ impl Module for Alu {
     }
 }
 
-impl ModuleGraphic for Alu {
+impl GraphicalModule for Alu {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::led(self.result)
     }

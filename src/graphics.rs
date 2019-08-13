@@ -32,11 +32,11 @@ pub enum VisualRepresentation {
     Empty,
 }
 
-pub trait ModuleGraphic: Module {
+pub trait GraphicalModule: Module {
     fn representation(&self) -> VisualRepresentation;
 }
 
-impl ModuleGraphic for EmptyModule {
+impl GraphicalModule for EmptyModule {
     fn representation(&self) -> VisualRepresentation {
         VisualRepresentation::Empty
     }
