@@ -10,7 +10,7 @@ pub mod register;
 pub use alu::Alu;
 pub use control::{ControlFlag, ControlWord};
 pub use instruction_decoder::{
-    BranchingInstructionDecoder, InstructionDecoder, SimpleInstructionDecoder, DecoderStep,
+    BranchingInstructionDecoder, DecoderStep, InstructionDecoder, SimpleInstructionDecoder,
 };
 pub use instruction_register::InstructionRegister;
 pub use output_register::OutputRegister;

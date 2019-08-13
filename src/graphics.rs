@@ -1,7 +1,7 @@
-use crate::modules::{ControlWord, Module, EmptyModule};
+use crate::modules::{ControlWord, EmptyModule, Module};
+use gfx_graphics::{TextureContext, TextureSettings};
 use piston_window::*;
 use rusttype::Font;
-use gfx_graphics::{TextureContext, TextureSettings};
 
 pub enum VisualRepresentation {
     Text(String),
@@ -43,7 +43,7 @@ pub fn draw_leds(
     g: &mut G2d,
 ) -> [[f64; 3]; 2] {
     for bit in 1..=num_bits {
-        let transform = transform.trans((bit as f64 - 1.0) * 12.0, 0.0);
+        let transform = transform.trans((f64::from(bit) - 1.0) * 12.0, 0.0);
         let color = if (value & (1 << (num_bits - bit))) > 0 {
             color.on_color
         } else {
@@ -58,11 +58,18 @@ pub fn draw_leds(
             }
         }
     }
-    transform.trans(num_bits as f64 * 12.0, 0.0)
+    transform.trans(f64::from(num_bits) * 12.0, 0.0)
 }
 
 pub fn write(data: &str, glyphs: &mut Glyphs, transform: [[f64; 3]; 2], g: &mut G2d) {
-    text(color::BLACK, FONT_SIZE, data, glyphs, transform.scale_pos([0.3, 0.3]), g).unwrap();
+    text(
+        color::BLACK,
+        FONT_SIZE,
+        data,
+        glyphs,
+        transform.scale_pos([0.3, 0.3]),
+        g,
+    ).unwrap();
 }
 
 #[derive(Copy, Clone)]
@@ -122,7 +129,7 @@ pub const BUS_WIDTH: usize = 130;
 pub const CONTROL_HEIGHT: usize = 80;
 
 pub fn display_modules(
-    modules: &Vec<Box<dyn ModuleGraphic>>,
+    modules: &[Box<dyn ModuleGraphic>],
     glyphs: &mut Glyphs,
     c: Context,
     g: &mut G2d,
@@ -181,7 +188,7 @@ pub fn draw_lines(n_modules: usize, c: Context, g: &mut G2d) {
     line!(vline, MODULE_WIDTH * 2 + BUS_WIDTH, 0.0);
     line!(bus_line, MODULE_WIDTH, 0.0);
     line!(bus_line, MODULE_WIDTH, MODULE_HEIGHT * n_lines);
-    for lnum in 0..(n_lines + 1) {
+    for lnum in 0..=n_lines {
         line!(hline, 0.0, MODULE_HEIGHT * lnum);
         line!(hline, MODULE_WIDTH + BUS_WIDTH, MODULE_HEIGHT * lnum);
     }
@@ -194,7 +201,7 @@ pub fn display_bus(bus: u8, transform: [[f64; 3]; 2], glyphs: &mut Glyphs, g: &m
 
 pub fn display_cw(cw: ControlWord, transform: [[f64; 3]; 2], glyphs: &mut Glyphs, g: &mut G2d) {
     write("Control Word", glyphs, transform.trans(5.0, 15.0), g);
-    const LABELS: [&'static str; 32] = [
+    const LABELS: [&str; 32] = [
         "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "NI", "FI", "J", "CO", "CE",
         "OI", "BI", "SU", "ΣO", "AO", "AI", "II", "IO", "RO", "RI", "MI", "HLT",
     ];
@@ -218,8 +225,12 @@ const FONT_DATA: &[u8] = include_bytes!("../assets/FiraSans-Regular.ttf");
 
 pub fn load_font(window: &mut PistonWindow) -> Glyphs {
     let font: Font<'static> = Font::from_bytes(FONT_DATA).unwrap();
-    Glyphs::from_font(font, TextureContext {
-        factory: window.factory.clone(),
-        encoder: window.factory.create_command_buffer().into()
-    }, TextureSettings::new())
+    Glyphs::from_font(
+        font,
+        TextureContext {
+            factory: window.factory.clone(),
+            encoder: window.factory.create_command_buffer().into(),
+        },
+        TextureSettings::new(),
+    )
 }

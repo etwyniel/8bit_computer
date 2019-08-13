@@ -1,7 +1,7 @@
-use std::fmt::{self, Display, Formatter};
-use super::{Module, ControlFlag, ControlWord};
-use crate::shareable::{Shareable, Shared};
+use super::{ControlFlag, ControlWord, Module};
 use crate::graphics::*;
+use crate::shareable::{Shareable, Shared};
+use std::fmt::{self, Display, Formatter};
 
 /// Implementors are expected to own references to the necessary registers
 pub trait InstructionDecoder {
