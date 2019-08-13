@@ -1,7 +1,7 @@
 use crate::graphics::ModuleGraphic;
 use crate::modules::*;
-use crate::utils::use_color;
 use std::default::Default;
+use atty::Stream;
 
 type Modules = Vec<Box<dyn ModuleGraphic>>;
 
@@ -132,7 +132,7 @@ impl<I: InstructionDecoder> BreadboardState<I> {
             if name.is_empty() && contents.is_empty() {
                 continue;
             }
-            if use_color() {
+            if atty::is(Stream::Stdout) {
                 println!(
                     "\x1b[1;32m{:>width$}\x1b[0m {}",
                     name,

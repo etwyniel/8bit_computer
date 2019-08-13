@@ -2,7 +2,6 @@ pub mod graphics;
 pub mod modules;
 pub mod shareable;
 pub mod state;
-pub mod utils;
 
 use graphics::*;
 use modules::*;
