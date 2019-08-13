@@ -7,6 +7,7 @@ pub mod utils;
 use graphics::*;
 use modules::*;
 use state::BreadboardState;
+use std::time::{Duration, Instant};
 
 fn fibo(n: usize) -> usize {
     if n == 0 || n == 1 {
@@ -149,6 +150,7 @@ where
     let mut changed = true;
     let mut clock_divider = 2;
     let mut cycle_number = 0;
+    let frame_duration = Duration::new(1, 0).checked_div(60).unwrap();
     loop {
         if changed {
             changed = false;
@@ -161,6 +163,7 @@ where
         graphics.display_bus(state.bus())?;
         graphics.display_cw(state.cw())?;
         graphics.canvas.present();
+        let last_render = Instant::now();
         if !manual {
             cycle_number += 1;
             if cycle_number % fibo(clock_divider) == 0 {
@@ -169,7 +172,17 @@ where
                 state.update();
             }
         }
-        for event in event_pump.poll_iter() {
+        while last_render.elapsed() < frame_duration {
+            let event = if manual {
+                event_pump.wait_event()
+            } else {
+                match event_pump.wait_event_timeout(frame_duration.as_millis() as u32) {
+                    Some(e) => e,
+                    None => {
+                        continue;
+                    }
+                }
+            };
             if let Event::KeyDown {
                 keycode: Some(Keycode::Escape),
                 ..
