@@ -23,3 +23,16 @@ In run mode, the clock can be slowed down or sped up using `PageDown` and
 `PageUp` respectively.
 The modules can be reset using the `R` key (useful if the computer halts after
 finishing a program).
+Pressing  `Esc` closes the program.
+
+# Piston
+
+I originally used [Piston](https://github.com/PistonDevelopers/piston)
+(a pure Rust game engine) to display the computer, but the compilation times
+and the size of the build artifacts made me reconsider it. Instead of throwing
+it away, I put the Piston renderer behind a feature flag. If you want to use
+it, compile with:
+
+    $ cargo build --release --features piston
+
+Without this feature flag, the renderer uses SDL2.
