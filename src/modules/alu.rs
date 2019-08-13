@@ -1,4 +1,5 @@
-use super::{ControlFlag, ControlWord, Module};
+use super::*;
+use crate::graphics::*;
 use crate::shareable::{Shareable, Shared};
 use std::default::Default;
 use std::fmt::{self, Display, Formatter};
@@ -35,7 +36,7 @@ impl Alu {
 
 impl Module for Alu {
     fn get_name(&self) -> &'static str {
-        "ALU"
+        "Sum Register"
     }
 
     fn pre_step(&mut self, cw: ControlWord) {
@@ -60,6 +61,12 @@ impl Module for Alu {
 
     fn write_to_bus(&mut self) -> u8 {
         self.result
+    }
+}
+
+impl ModuleGraphic for Alu {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::led(self.result)
     }
 }
 

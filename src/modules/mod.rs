@@ -10,7 +10,7 @@ pub mod register;
 pub use alu::Alu;
 pub use control::{ControlFlag, ControlWord};
 pub use instruction_decoder::{
-    BranchingInstructionDecoder, InstructionDecoder, SimpleInstructionDecoder,
+    BranchingInstructionDecoder, DecoderStep, InstructionDecoder, SimpleInstructionDecoder,
 };
 pub use instruction_register::InstructionRegister;
 pub use output_register::OutputRegister;
@@ -51,5 +51,22 @@ pub trait Module: std::fmt::Debug + std::fmt::Display {
         if cw.has(self.bus_read_flag()) {
             self.read_from_bus(bus);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct EmptyModule;
+
+impl Module for EmptyModule {
+    fn get_name(&self) -> &str {
+        ""
+    }
+
+    fn reset(&mut self) {}
+}
+
+impl std::fmt::Display for EmptyModule {
+    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        Ok(())
     }
 }

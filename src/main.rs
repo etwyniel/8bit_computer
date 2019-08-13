@@ -1,132 +1,202 @@
-mod modules;
+pub mod graphics;
+pub mod modules;
 pub mod shareable;
+pub mod state;
+pub mod utils;
 
+use graphics::*;
 use modules::*;
-use std::io::BufRead;
+use state::BreadboardState;
+use std::time::{Duration, Instant};
 
-pub fn run_cycle<I>(modules: &mut [Box<dyn Module>], decoder: &mut I) -> bool
+fn fibo(n: usize) -> usize {
+    if n == 0 || n == 1 {
+        return n;
+    }
+    let (mut x0, mut x1) = (0, 1);
+    for _ in 1..n {
+        std::mem::swap(&mut x0, &mut x1);
+        x1 += x0;
+    }
+    x1
+}
+
+#[cfg(feature = "piston")]
+fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
 where
     I: InstructionDecoder,
 {
-    let cw = decoder.decode();
-    decoder.step();
-    if cw.has(ControlFlag::Hlt) {
-        return false;
-    }
-    eprintln!("cw: {}", cw);
-    for module in modules.iter_mut() {
-        module.pre_step(cw);
-    }
-    let mut bus = None;
-    for module in modules.iter_mut() {
-        bus = bus.or_else(|| module.bus_write(cw));
-    }
-    let bus = bus.unwrap_or(0);
-    for module in modules.iter_mut() {
-        module.step(cw, bus);
-    }
+    let n_modules = state.modules().len();
+    let mut window = init_window(n_modules);
+    let glyphs = &mut load_font(&mut window);
+    state.pre_step();
+    let mut manual = true;
+    let mut changed = false;
+    window.events.set_lazy(manual);
+    window.events.set_ups(60);
+    let mut clock_divider = 2;
+    let mut cycle_number = 0;
+    while let Some(e) = window.next() {
+        if let (Some(_), true) = (e.update_args(), changed) {
+            changed = false;
+            state.pre_step();
+        }
 
-    for module in modules.iter_mut() {
-        module.bus_read(cw, bus);
+        window.draw_2d(&e, |c, g, device| {
+            clear([0.75, 0.73, 0.7, 1.0], g);
+            let mut graphics = GraphicsState::new(c, g, glyphs);
+            graphics.draw_lines(n_modules);
+            graphics.display_modules(&state.modules());
+            graphics.display_bus(state.bus());
+            graphics.display_cw(state.cw(), n_modules);
+            glyphs.factory.encoder.flush(device);
+        });
+
+        e.update(|_| {
+            cycle_number += 1;
+            if !manual && cycle_number % fibo(clock_divider) == 0 {
+                cycle_number = 0;
+                changed = true;
+                state.update();
+            }
+        });
+
+        e.press(|button| {
+            if let Button::Keyboard(key) = button {
+                match key {
+                    Key::Return if manual => {
+                        state.update();
+                        state.pre_step();
+                    }
+                    Key::R => {
+                        changed = true;
+                        state.reset();
+                        state.pre_step();
+                    }
+                    Key::C => {
+                        manual = !manual;
+                        window.events.set_lazy(manual);
+                    }
+                    Key::PageUp => {
+                        clock_divider = if clock_divider == 2 {
+                            2
+                        } else {
+                            clock_divider - 1
+                        };
+                    }
+                    Key::PageDown => {
+                        clock_divider += 1;
+                    }
+                    _ => (),
+                }
+            }
+        });
     }
-    // for module in modules.iter() {
-    //     eprintln!("module: {:?}", module);
-    // }
-    dbg!(bus);
-    true
+    Ok(())
 }
 
-#[cfg(unix)]
-fn use_color() -> bool {
-    use std::os::unix::io::{AsRawFd, RawFd};
-
-    extern "C" {
-        fn isatty(fd: RawFd) -> std::os::raw::c_int;
+#[cfg(not(feature = "piston"))]
+fn handle_event<I>(
+    state: &mut BreadboardState<I>,
+    manual: &mut bool,
+    clock_divider: &mut usize,
+    event: sdl2::event::Event,
+) -> bool
+where
+    I: InstructionDecoder,
+{
+    use sdl2::{event::Event, keyboard::*};
+    if let Event::KeyDown {
+        keycode: Some(key), ..
+    } = event
+    {
+        match key {
+            Keycode::Return if *manual => {
+                state.update();
+                return true;
+            }
+            Keycode::C => {
+                *manual = !*manual;
+            }
+            Keycode::PageUp if *clock_divider > 2 => {
+                *clock_divider -= 1;
+            }
+            Keycode::PageDown => {
+                *clock_divider += 1;
+            }
+            Keycode::R => {
+                state.reset();
+                return true;
+            }
+            _ => (),
+        };
     }
-    unsafe { isatty(std::io::stdout().as_raw_fd()) > 0 }
-}
-
-#[cfg(not(unix))]
-fn use_color() -> bool {
     false
 }
 
-fn pretty_print_output(lines: &[(String, String)]) {
-    let longest = lines.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
-    for (ref name, ref contents) in lines {
-        if use_color() {
-            println!(
-                "\x1b[1;32m{:>width$}\x1b[0m {}",
-                name,
-                contents,
-                width = longest
-            );
-        } else {
-            println!("{:>width$} {}", name, contents, width = longest);
-        }
-    }
-}
-
-fn interactive_loop<I>(mut modules: Vec<Box<dyn Module>>, mut decoder: I)
+#[cfg(not(feature = "piston"))]
+fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
 where
     I: InstructionDecoder,
 {
-    let stdin = std::io::stdin();
-    let mut input = stdin.lock();
-    let mut line = String::new();
-    let mut output = Vec::with_capacity(modules.len() + 2);
+    use sdl2::{event::Event, keyboard::*};
+    let n_modules = state.modules().len();
+    let ttf_ctx = sdl2::ttf::init().map_err(|e| e.to_string())?;
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+    let mut graphics = GraphicsState::new(&video_subsystem, n_modules, &ttf_ctx)?;
+    let mut event_pump = sdl_context.event_pump()?;
+    let mut manual = true;
+    let mut changed = true;
+    let mut clock_divider = 2;
+    let mut cycle_number = 0;
+    let frame_duration = Duration::new(1, 0).checked_div(60).unwrap();
     loop {
-        output.clear();
-        output.push(("Decoding step".to_string(), decoder.get_counter().to_string()));
-        let mut cw = decoder.decode();
-        decoder.step();
-        for module in modules.iter_mut() {
-            module.pre_step(cw);
+        if changed {
+            changed = false;
+            state.pre_step();
         }
-        let mut bus = None;
-        for module in modules.iter_mut() {
-            bus = bus.or_else(|| module.bus_write(cw));
-        }
-        let bus = bus.unwrap_or(0);
-
-        for module in modules.iter() {
-            output.push((module.get_name().to_string(), format!("{}", module)));
-        }
-        output.push(("Control word".to_string(), format!("{}", cw)));
-        output.push(("Bus".to_string(), format!("{:08b}", bus)));
-        pretty_print_output(&output);
-
-        for module in modules.iter_mut() {
-            module.step(cw, bus);
-        }
-
-        line.clear();
-        input.read_line(&mut line).unwrap();
-        match line.trim().as_ref() {
-            "q" | "quit" => break,
-            "reset" => {
-                for module in modules.iter_mut() {
-                    module.reset();
-                }
-                cw = ControlWord(0);
+        graphics.canvas.set_draw_color((191, 186, 179));
+        graphics.canvas.clear();
+        graphics.draw_lines()?;
+        graphics.display_modules(state.modules())?;
+        graphics.display_bus(state.bus())?;
+        graphics.display_cw(state.cw())?;
+        graphics.canvas.present();
+        let last_render = Instant::now();
+        if !manual {
+            cycle_number += 1;
+            if cycle_number % fibo(clock_divider) == 0 {
+                changed = true;
+                cycle_number = 0;
+                state.update();
             }
-            _ => (),
         }
-
-        if cw.has(ControlFlag::Hlt) {
-            break;
-        }
-
-        for module in modules.iter_mut() {
-            module.bus_read(cw, bus);
-        }
-
-        if cw.has(ControlFlag::NextInstruction) {
-            decoder.reset_counter();
+        while last_render.elapsed() < frame_duration {
+            let event = if manual {
+                event_pump.wait_event()
+            } else {
+                match event_pump.wait_event_timeout(frame_duration.as_millis() as u32) {
+                    Some(e) => e,
+                    None => {
+                        continue;
+                    }
+                }
+            };
+            if let Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            }
+            | Event::Quit { .. } = event
+            {
+                return Ok(());
+            }
+            changed |= handle_event(&mut state, &mut manual, &mut clock_divider, event);
         }
     }
 }
 
+#[allow(unused)]
 fn write_program(ram: &mut [u8; 16]) {
     ram[0x0] = 0x1e; // LDA 14
     ram[0x1] = 0x2f; // ADD 15
@@ -137,36 +207,9 @@ fn write_program(ram: &mut [u8; 16]) {
 }
 
 fn main() {
-    let a = Register::new(
-        "A Register",
-        ControlFlag::ARegisterIn,
-        ControlFlag::ARegisterOut,
-    );
-    let b = Register::new_ro("B Register", ControlFlag::BRegisterIn);
-    let alu = Alu::new(a.share(), b.share());
-    let output = OutputRegister(0);
-    let address_register = Register::new_ro("Address", ControlFlag::MemoryAddressIn);
-    let mut ram = Ram::new(address_register.share());
-    write_program(&mut ram.memory);
-    let instruction_register = InstructionRegister::default();
-    let instruction = instruction_register.share();
-    let program_counter = ProgramCounter(0);
-    let decoder =
-        BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
-    let modules: Vec<Box<dyn Module>> = vec![
-        Box::new(program_counter),
-        Box::new(instruction_register),
-        Box::new(address_register),
-        Box::new(ram),
-        Box::new(a),
-        Box::new(b),
-        Box::new(alu),
-        Box::new(output),
-    ];
-    interactive_loop(modules, decoder);
-    // loop {
-    //     if !run_cycle(&mut modules, &mut decoder) {
-    //         break;
-    //     }
-    // }
+    let breadboard = BreadboardState::default();
+    if let Err(s) = interactive_loop(breadboard) {
+        eprintln!("Error: {}", s);
+        std::process::exit(1);
+    }
 }

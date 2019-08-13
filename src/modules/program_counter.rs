@@ -1,4 +1,5 @@
-use super::{ControlFlag, ControlWord, Module};
+use super::*;
+use crate::graphics::*;
 use std::fmt::{self, Display, Formatter};
 use std::num::Wrapping;
 
@@ -35,6 +36,12 @@ impl Module for ProgramCounter {
 
     fn write_to_bus(&mut self) -> u8 {
         self.0
+    }
+}
+
+impl ModuleGraphic for ProgramCounter {
+    fn representation(&self) -> VisualRepresentation {
+        VisualRepresentation::LedHalf(self.0, LedColor::new(0.0, 1.0, 0.0))
     }
 }
 
