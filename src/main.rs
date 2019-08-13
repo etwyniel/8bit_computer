@@ -108,10 +108,11 @@ where
     let mut window = init_window(modules.len());
     let ref mut glyphs = load_font(&mut window);
     let mut output = Vec::with_capacity(modules.len() + 2);
-    let mut cw = ControlWord(0);
-    let mut bus = 0;
-    let mut changed = true;
+    let (mut cw, mut bus) = pre_step(&mut modules, &mut decoder, &mut output);
     let mut manual = true;
+    let mut changed = false;
+    window.events.set_lazy(manual);
+    window.events.set_ups(60);
     let mut clock_divider = 2;
     let mut cycle_number = 0;
     while let Some(e) = window.next() {
@@ -145,8 +146,10 @@ where
         });
 
         if let (true, Some(Button::Keyboard(Key::Return))) = (manual, e.press_args()) {
-            changed = true;
             update_state(&mut modules, cw, bus, &mut decoder);
+            let state = pre_step(&mut modules, &mut decoder, &mut output);
+            cw = state.0;
+            bus = state.1;
         } else if let Some(Button::Keyboard(Key::R)) = e.press_args() {
             changed = true;
             for module in modules.iter_mut() {
@@ -155,6 +158,7 @@ where
             decoder.reset_counter();
         } else if let Some(Button::Keyboard(Key::C)) = e.press_args() {
             manual = !manual;
+            window.events.set_lazy(manual);
         } else if let Some(Button::Keyboard(Key::PageUp)) = e.press_args() {
             clock_divider = if clock_divider == 2 { 2 } else { clock_divider - 1 };
         } else if let Some(Button::Keyboard(Key::PageDown)) = e.press_args() {
@@ -174,14 +178,15 @@ fn write_program(ram: &mut [u8; 16]) {
 }
 
 fn write_program2(ram: &mut [u8; 16]) {
-    ram[0x0] = 0xe0;
-    ram[0x1] = 0x2f;
-    ram[0x2] = 0x74;
-    ram[0x3] = 0x60;
-    ram[0x4] = 0x3f;
-    ram[0x5] = 0xe0;
-    ram[0x6] = 0x80;
-    ram[0x7] = 0x64;
+    // Increments A to 255 then decrements it down to 0 and repeats
+    ram[0x0] = 0xe0; // OUT
+    ram[0x1] = 0x2f; // ADD 15
+    ram[0x2] = 0x74; // JC 4
+    ram[0x3] = 0x60; // JMP 0
+    ram[0x4] = 0x3f; // SUB 15
+    ram[0x5] = 0xe0; // OUT
+    ram[0x6] = 0x80; // JZ 0
+    ram[0x7] = 0x64; // JMP 4
     ram[0xf] = 1;
 }
 
