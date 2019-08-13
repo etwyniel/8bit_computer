@@ -112,7 +112,6 @@ where
         match key {
             Keycode::Return if *manual => {
                 state.update();
-                state.pre_step();
                 return true;
             }
             Keycode::C => {
@@ -123,6 +122,10 @@ where
             }
             Keycode::PageDown => {
                 *clock_divider += 1;
+            }
+            Keycode::R => {
+                state.reset();
+                return true;
             }
             _ => (),
         };
@@ -142,7 +145,6 @@ where
     let video_subsystem = sdl_context.video()?;
     let mut graphics = GraphicsState::new(&video_subsystem, n_modules, &ttf_ctx)?;
     let mut event_pump = sdl_context.event_pump()?;
-    state.pre_step();
     let mut manual = true;
     let mut changed = true;
     let mut clock_divider = 2;
@@ -151,14 +153,14 @@ where
         if changed {
             changed = false;
             state.pre_step();
-            graphics.canvas.set_draw_color((191, 186, 179));
-            graphics.canvas.clear();
-            graphics.draw_lines()?;
-            graphics.display_modules(state.modules())?;
-            graphics.display_bus(state.bus())?;
-            graphics.display_cw(state.cw())?;
-            graphics.canvas.present();
         }
+        graphics.canvas.set_draw_color((191, 186, 179));
+        graphics.canvas.clear();
+        graphics.draw_lines()?;
+        graphics.display_modules(state.modules())?;
+        graphics.display_bus(state.bus())?;
+        graphics.display_cw(state.cw())?;
+        graphics.canvas.present();
         if !manual {
             cycle_number += 1;
             if cycle_number % fibo(clock_divider) == 0 {
@@ -176,7 +178,7 @@ where
             {
                 return Ok(());
             }
-            changed = handle_event(&mut state, &mut manual, &mut clock_divider, event);
+            changed |= handle_event(&mut state, &mut manual, &mut clock_divider, event);
         }
     }
 }
