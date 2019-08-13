@@ -43,23 +43,12 @@ where
 
         window.draw_2d(&e, |c, g, device| {
             clear([0.75, 0.73, 0.7, 1.0], g);
-            draw_lines(n_modules, c, g);
-            display_modules(&state.modules(), glyphs, c, g);
-            display_bus(
-                state.bus(),
-                c.transform.trans(MODULE_WIDTH as f64, 0.0),
-                glyphs,
-                g,
-            );
-            display_cw(
-                state.cw(),
-                c.transform.trans(
-                    0.0,
-                    (MODULE_HEIGHT * (n_modules / 2 + n_modules % 2)) as f64,
-                ),
-                glyphs,
-                g,
-            );
+            let mut graphics = GraphicsState::new(c, g, glyphs);
+            graphics.draw_lines(n_modules);
+            graphics.display_modules(&state.modules());
+            graphics.display_bus(state.bus());
+            graphics.display_bus(state.bus());
+            graphics.display_cw(state.cw(), n_modules);
             glyphs.factory.encoder.flush(device);
         });
 
