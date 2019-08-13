@@ -6,7 +6,6 @@ pub mod utils;
 
 use graphics::*;
 use modules::*;
-use piston_window::*;
 use state::BreadboardState;
 
 fn fibo(n: usize) -> usize {
@@ -21,7 +20,8 @@ fn fibo(n: usize) -> usize {
     x1
 }
 
-fn interactive_loop<I>(mut state: BreadboardState<I>)
+#[cfg(feature = "piston")]
+fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
 where
     I: InstructionDecoder,
 {
@@ -46,7 +46,6 @@ where
             let mut graphics = GraphicsState::new(c, g, glyphs);
             graphics.draw_lines(n_modules);
             graphics.display_modules(&state.modules());
-            graphics.display_bus(state.bus());
             graphics.display_bus(state.bus());
             graphics.display_cw(state.cw(), n_modules);
             glyphs.factory.encoder.flush(device);
@@ -92,6 +91,94 @@ where
             }
         });
     }
+    Ok(())
+}
+
+#[cfg(not(feature = "piston"))]
+fn handle_event<I>(
+    state: &mut BreadboardState<I>,
+    manual: &mut bool,
+    clock_divider: &mut usize,
+    event: sdl2::event::Event,
+) -> bool
+where
+    I: InstructionDecoder,
+{
+    use sdl2::{event::Event, keyboard::*};
+    if let Event::KeyDown {
+        keycode: Some(key), ..
+    } = event
+    {
+        match key {
+            Keycode::Return if *manual => {
+                state.update();
+                state.pre_step();
+                return true;
+            }
+            Keycode::C => {
+                *manual = !*manual;
+            }
+            Keycode::PageUp if *clock_divider > 2 => {
+                *clock_divider -= 1;
+            }
+            Keycode::PageDown => {
+                *clock_divider += 1;
+            }
+            _ => (),
+        };
+    }
+    false
+}
+
+#[cfg(not(feature = "piston"))]
+fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
+where
+    I: InstructionDecoder,
+{
+    use sdl2::{event::Event, keyboard::*};
+    let n_modules = state.modules().len();
+    let ttf_ctx = sdl2::ttf::init().map_err(|e| e.to_string())?;
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+    let mut graphics = GraphicsState::new(&video_subsystem, n_modules, &ttf_ctx)?;
+    let mut event_pump = sdl_context.event_pump()?;
+    state.pre_step();
+    let mut manual = true;
+    let mut changed = true;
+    let mut clock_divider = 2;
+    let mut cycle_number = 0;
+    loop {
+        if changed {
+            changed = false;
+            state.pre_step();
+            graphics.canvas.set_draw_color((191, 186, 179));
+            graphics.canvas.clear();
+            graphics.draw_lines()?;
+            graphics.display_modules(state.modules())?;
+            graphics.display_bus(state.bus())?;
+            graphics.display_cw(state.cw())?;
+            graphics.canvas.present();
+        }
+        if !manual {
+            cycle_number += 1;
+            if cycle_number % fibo(clock_divider) == 0 {
+                changed = true;
+                cycle_number = 0;
+                state.update();
+            }
+        }
+        for event in event_pump.poll_iter() {
+            if let Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            }
+            | Event::Quit { .. } = event
+            {
+                return Ok(());
+            }
+            changed = handle_event(&mut state, &mut manual, &mut clock_divider, event);
+        }
+    }
 }
 
 #[allow(unused)]
@@ -106,5 +193,8 @@ fn write_program(ram: &mut [u8; 16]) {
 
 fn main() {
     let breadboard = BreadboardState::default();
-    interactive_loop(breadboard);
+    if let Err(s) = interactive_loop(breadboard) {
+        eprintln!("Error: {}", s);
+        std::process::exit(1);
+    }
 }
