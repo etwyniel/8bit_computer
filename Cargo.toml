@@ -3,6 +3,7 @@ name = "breadboard_8bit"
 version = "0.1.0"
 authors = ["Aymeric Beringer <aymeric.beringer@epita.fr>"]
 edition = "2018"
+default-run = "breadboard_8bit"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
