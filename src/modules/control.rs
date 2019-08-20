@@ -74,13 +74,9 @@ impl Display for ControlWord {
         }
         if flags.is_empty() {
             write!(f, "Empty")
-        } else if flags.len() == 1 {
-            write!(f, "{:?}", flags[0])
         } else {
-            for flag in flags.iter().take(flags.len() - 1) {
-                write!(f, "{:?} | ", flag)?;
-            }
-            write!(f, "{:?}", flags[flags.len() - 1])
+            let str_flags: Vec<String> = flags.iter().map(|f| format!("{:?}", f)).collect();
+            write!(f, "{}", &str_flags.join(" | "))
         }
     }
 }

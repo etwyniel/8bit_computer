@@ -1,6 +1,6 @@
 use super::*;
 use crate::graphics::*;
-use crate::shareable::{Shareable, Shared};
+use crate::shareable::{Share, Shareable, Shared};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Default, Debug)]
@@ -9,7 +9,13 @@ pub struct InstructionRegister {
 }
 
 impl InstructionRegister {
-    pub fn share(&self) -> Shared<u8> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Share<u8> for InstructionRegister {
+    fn share(&self) -> Shared<u8> {
         self.value.share()
     }
 }

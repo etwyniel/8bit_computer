@@ -126,13 +126,8 @@ impl<'a, 'b: 'a> GraphicsState<'a, G2d<'b>> {
             (MODULE_HEIGHT * (n_modules / 2 + n_modules % 2)) as f64,
         );
         self.write("Control Word", transform.trans(5.0, 15.0));
-        let (mut reversed, mut copy) = (0, cw.0);
-        for _ in 1..=32 {
-            reversed = (reversed >> 1) | (copy & (1 << 31));
-            copy <<= 1;
-        }
         self.draw_leds(
-            reversed as usize,
+            cw.0.reverse_bits() as usize,
             32,
             LedColor::new(0.3, 0.3, 1.0),
             transform.trans(5.0, 30.0),

@@ -131,13 +131,8 @@ impl<'a> GraphicsState<'a> {
     pub fn display_cw(&mut self, cw: ControlWord) -> Result<(), String> {
         let (x, y) = (5, MODULE_HEIGHT as i32 * self.n_lines + 5);
         self.write("Control Word", x, y)?;
-        let (mut reversed, mut copy) = (0, cw.0);
-        for _ in 1..=32 {
-            reversed = (reversed >> 1) | (copy & (1 << 31));
-            copy <<= 1;
-        }
         self.draw_leds(
-            reversed as usize,
+            cw.0.reverse_bits() as usize,
             32,
             LedColor::new(0.3, 0.3, 1.0),
             (x, y + 30),

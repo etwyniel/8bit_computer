@@ -1,6 +1,6 @@
 use super::*;
 use crate::graphics::*;
-use crate::shareable::{Shareable, Shared};
+use crate::shareable::Shared;
 use std::default::Default;
 use std::fmt::{self, Display, Formatter};
 
@@ -8,7 +8,7 @@ use std::fmt::{self, Display, Formatter};
 pub struct Ram {
     address: Shared<u8>,
     pub memory: [u8; 16],
-    byte: Shareable<u8>,
+    byte: u8,
 }
 
 impl Ram {
@@ -27,7 +27,7 @@ impl Module for Ram {
     }
 
     fn pre_step(&mut self, _cw: ControlWord) {
-        self.byte.set(self.memory[self.address.get() as usize]);
+        self.byte = self.memory[self.address.get() as usize];
     }
 
     fn reset(&mut self) {}
@@ -45,18 +45,18 @@ impl Module for Ram {
     }
 
     fn write_to_bus(&mut self) -> u8 {
-        self.byte.get()
+        self.byte
     }
 }
 
 impl GraphicalModule for Ram {
     fn representation(&self) -> VisualRepresentation {
-        VisualRepresentation::led(self.byte.get())
+        VisualRepresentation::led(self.byte)
     }
 }
 
 impl Display for Ram {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:08b}", self.byte.get())
+        write!(f, "{:08b}", self.byte)
     }
 }

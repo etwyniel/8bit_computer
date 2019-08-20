@@ -23,9 +23,10 @@ impl LedColor {
     }
 }
 
-pub enum VisualRepresentation {
+pub enum VisualRepresentation<'a> {
     Text(String),
     LedN(usize, u8, LedColor),
+    LabeledLedN(usize, u8, LedColor, &'a [&'static str]),
     LedByte(u8, LedColor),
     LedHalf(u8, LedColor),
     LedSplit(u8, LedColor, LedColor),
@@ -48,8 +49,8 @@ impl Default for LedColor {
     }
 }
 
-impl VisualRepresentation {
-    pub fn led(byte: u8) -> VisualRepresentation {
+impl VisualRepresentation<'_> {
+    pub fn led(byte: u8) -> Self {
         VisualRepresentation::LedByte(byte, LedColor::default())
     }
 
@@ -62,6 +63,9 @@ impl VisualRepresentation {
             }
             LedN(value, num_bits, color) => {
                 graphics.draw_leds(value, num_bits, color, transform, None);
+            }
+            LabeledLedN(value, num_bits, color, labels) => {
+                graphics.draw_leds(value, num_bits, color, transform, Some(labels));
             }
             LedByte(byte, color) => {
                 graphics.draw_leds(byte as usize, 8, color, transform, None);
@@ -87,6 +91,9 @@ impl VisualRepresentation {
             }
             LedN(value, num_bits, color) => {
                 graphics.draw_leds(value, num_bits, color, (x, y), None)?;
+            }
+            LabeledLedN(value, num_bits, color, labels) => {
+                graphics.draw_leds(value, num_bits, color, (x, y), Some(labels))?;
             }
             LedByte(byte, color) => {
                 graphics.draw_leds(byte as usize, 8, color, (x, y), None)?;

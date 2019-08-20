@@ -1,5 +1,6 @@
 pub mod alu;
 pub mod control;
+pub mod flags_register;
 pub mod instruction_decoder;
 pub mod instruction_register;
 pub mod output_register;
@@ -9,9 +10,8 @@ pub mod register;
 
 pub use alu::Alu;
 pub use control::{ControlFlag, ControlWord};
-pub use instruction_decoder::{
-    BranchingInstructionDecoder, DecoderStep, InstructionDecoder, SimpleInstructionDecoder,
-};
+pub use flags_register::FlagsRegister;
+pub use instruction_decoder::*;
 pub use instruction_register::InstructionRegister;
 pub use output_register::OutputRegister;
 pub use program_counter::ProgramCounter;

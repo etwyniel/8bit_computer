@@ -3,9 +3,10 @@ pub mod modules;
 pub mod shareable;
 pub mod state;
 
+use clap::{App, Arg};
 use graphics::*;
 use modules::*;
-use state::BreadboardState;
+use state::{write_sample_program, BreadboardState};
 use std::time::{Duration, Instant};
 
 fn fibo(n: usize) -> usize {
@@ -21,7 +22,7 @@ fn fibo(n: usize) -> usize {
 }
 
 #[cfg(feature = "piston")]
-fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
+fn interactive_loop_piston<I>(mut state: BreadboardState<I>) -> Result<(), String>
 where
     I: InstructionDecoder,
 {
@@ -56,7 +57,8 @@ where
             if !manual && cycle_number % fibo(clock_divider) == 0 {
                 cycle_number = 0;
                 changed = true;
-                state.update();
+                state.rising_edge();
+                state.falling_edge();
             }
         });
 
@@ -64,7 +66,8 @@ where
             if let Button::Keyboard(key) = button {
                 match key {
                     Key::Return if manual => {
-                        state.update();
+                        state.rising_edge();
+                        state.falling_edge();
                         state.pre_step();
                     }
                     Key::R => {
@@ -111,7 +114,8 @@ where
     {
         match key {
             Keycode::Return if *manual => {
-                state.update();
+                state.rising_edge();
+                state.falling_edge();
                 return true;
             }
             Keycode::C => {
@@ -133,8 +137,7 @@ where
     false
 }
 
-#[cfg(not(feature = "piston"))]
-fn interactive_loop<I>(mut state: BreadboardState<I>) -> Result<(), String>
+fn interactive_loop_sdl<I>(mut state: BreadboardState<I>) -> Result<(), String>
 where
     I: InstructionDecoder,
 {
@@ -168,7 +171,8 @@ where
             if cycle_number % fibo(clock_divider) == 0 {
                 changed = true;
                 cycle_number = 0;
-                state.update();
+                state.rising_edge();
+                state.falling_edge();
             }
         }
         while last_render.elapsed() < frame_duration {
@@ -205,10 +209,75 @@ fn write_program(ram: &mut [u8; 16]) {
     ram[0xf] = 28;
 }
 
-fn main() {
-    let breadboard = BreadboardState::default();
-    if let Err(s) = interactive_loop(breadboard) {
-        eprintln!("Error: {}", s);
+#[cfg(feature = "piston")]
+const DEFAULT_INTERACTIVE_LOOP: &'static str = "piston";
+#[cfg(not(feature = "piston"))]
+const DEFAULT_INTERACTIVE_LOOP: &'static str = "sdl";
+
+#[cfg(feature = "piston")]
+fn interactive_loop<I: InstructionDecoder>(backend: &str, state: BreadboardState<I>) -> Result<(), String> {
+    match backend {
+        "piston" => interactive_loop_piston(state),
+        "sdl" => interactive_loop_sdl(state),
+        _ => {
+            eprintln!("Unknown rendering backend {}", name);
+            std::process::exit(1);
+        }
+    }
+}
+
+#[cfg(not(feature = "piston"))]
+fn interactive_loop<I: InstructionDecoder>(backend: &str, state: BreadboardState<I>) -> Result<(), String> {
+    if backend == "piston" {
+        eprintln!("Error: The program was not compiled with piston enabled.");
+        eprintln!("To enable piston, recompile with `--features \"piston\"`");
         std::process::exit(1);
+    }
+    if backend == "sdl" {
+        interactive_loop_sdl(state)
+    } else {
+        eprintln!("Unknown rendering backend {}", backend);
+        std::process::exit(1);
+    }
+}
+
+fn main() {
+    let matches = App::new("8bit computer")
+        .version("0.1.1")
+        .author("Aymeric Beringer <aymeric@beringer.cf>")
+        .arg(
+            Arg::with_name("microcode")
+                .short("m")
+                .long("microcode")
+                .value_name("FILE")
+                .help("Use microcode from file instead of predefined logic")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("backend")
+                .short("b")
+                .long("backend")
+                .value_name("BACKEND")
+                .possible_values(&["sdl", "piston"])
+                .help(concat!("Select the graphics backend if compiled with ",
+                              "piston enabled, piston is the default.")),
+        ).get_matches();
+    let backend = matches.value_of("backend").unwrap_or(DEFAULT_INTERACTIVE_LOOP);
+    if let Some(microcode_filename) = matches.value_of("microcode") {
+        let breadboard =
+            match BreadboardState::from_microcode(microcode_filename, write_sample_program) {
+                Err(s) => {
+                    eprintln!("Could not open microcode file: {}", s);
+                    std::process::exit(1);
+                }
+                Ok(state) => state,
+            };
+        interactive_loop(backend, breadboard).unwrap();
+    } else {
+        let breadboard = BreadboardState::default_with_ram(write_sample_program);
+        if let Err(s) = interactive_loop(backend, breadboard) {
+            eprintln!("Error: {}", s);
+            std::process::exit(1);
+        }
     }
 }

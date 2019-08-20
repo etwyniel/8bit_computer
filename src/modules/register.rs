@@ -1,6 +1,6 @@
 use super::*;
 use crate::graphics::*;
-use crate::shareable::{Shareable, Shared};
+use crate::shareable::{Share, Shareable, Shared};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
@@ -24,8 +24,10 @@ impl Register {
     pub fn new_ro(name: &str, in_flag: ControlFlag) -> Register {
         Self::new(name, in_flag, ControlFlag::Empty)
     }
+}
 
-    pub fn share(&self) -> Shared<u8> {
+impl Share<u8> for Register {
+    fn share(&self) -> Shared<u8> {
         self.value.share()
     }
 }

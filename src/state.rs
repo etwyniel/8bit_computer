@@ -1,9 +1,12 @@
 use atty::Stream;
 use crate::graphics::GraphicalModule;
 use crate::modules::*;
+use crate::shareable::{Share, Shared};
+use std::convert::AsRef;
 use std::default::Default;
+use std::path::Path;
 
-type Modules = Vec<Box<dyn GraphicalModule>>;
+pub type Modules = Vec<Box<dyn GraphicalModule>>;
 
 pub struct BreadboardState<I: InstructionDecoder = BranchingInstructionDecoder> {
     modules: Modules,
@@ -19,8 +22,35 @@ impl Default for BreadboardState {
     }
 }
 
-impl BreadboardState<BranchingInstructionDecoder> {
-    pub fn default_with_ram<F: FnOnce(&mut [u8; 16])>(f: F) -> Self {
+impl BreadboardState {
+    pub fn default_with_ram<F: FnOnce(&mut [u8; 16])>(
+        f: F,
+    ) -> BreadboardState<BranchingInstructionDecoder> {
+        Self::default_with_decoder(f, |i, f| Ok(BranchingInstructionDecoder::new(i, f))).unwrap()
+    }
+
+    pub fn from_microcode<P, F>(
+        microcode_path: P,
+        ram_init: F,
+    ) -> Result<BreadboardState<MicrocodeDecoder>, String>
+    where
+        P: AsRef<Path>,
+        F: FnOnce(&mut [u8; 16]),
+    {
+        Self::default_with_decoder(
+            ram_init,
+            |instruction, flags| {
+                MicrocodeDecoder::from_file(instruction, flags, microcode_path).map_err(|e| e.to_string())
+            },
+        )
+    }
+
+    pub fn default_with_decoder<R, D, I>(ram_init: R, get_decoder: D) -> Result<BreadboardState<I>, String>
+    where
+        R: FnOnce(&mut [u8; 16]),
+        D: FnOnce(Shared<u8>, Shared<u8>) -> Result<I, String>,
+        I: InstructionDecoder + Share<u8>,
+    {
         let a = Register::new(
             "A Register",
             ControlFlag::ARegisterIn,
@@ -28,16 +58,16 @@ impl BreadboardState<BranchingInstructionDecoder> {
         );
         let b = Register::new_ro("B Register", ControlFlag::BRegisterIn);
         let alu = Alu::new(a.share(), b.share());
+        let flags_register = FlagsRegister::new(alu.share(), alu.get_labels());
         let output = OutputRegister(0);
         let address_register = Register::new_ro("Memory Address", ControlFlag::MemoryAddressIn);
         let mut ram = Ram::new(address_register.share());
-        f(&mut ram.memory);
+        ram_init(&mut ram.memory);
         let instruction_register = InstructionRegister::default();
         let instruction = instruction_register.share();
         let program_counter = ProgramCounter(0);
-        let decoder =
-            BranchingInstructionDecoder::new(instruction, alu.share_carry(), alu.share_zero());
-        let decoder_step = DecoderStep(decoder.share_counter());
+        let decoder = get_decoder(instruction, alu.share())?;
+        let decoder_step = DecoderStep(decoder.share());
         let modules: Modules = vec![
             Box::new(program_counter),
             Box::new(address_register),
@@ -46,11 +76,11 @@ impl BreadboardState<BranchingInstructionDecoder> {
             Box::new(decoder_step),
             Box::new(a),
             Box::new(alu),
+            Box::new(flags_register),
             Box::new(b),
             Box::new(output),
-            Box::new(EmptyModule),
         ];
-        Self::new(modules, decoder)
+        Ok(BreadboardState::new(modules, decoder))
     }
 }
 
@@ -85,7 +115,14 @@ impl<I: InstructionDecoder> BreadboardState<I> {
         self.decoder.reset_counter();
     }
 
-    pub fn update(&mut self) {
+    pub fn falling_edge(&mut self) {
+        self.decoder.step();
+        if self.cw.has(ControlFlag::NextInstruction) {
+            self.decoder.reset_counter();
+        }
+    }
+
+    pub fn rising_edge(&mut self) {
         if self.cw.has(ControlFlag::Hlt) {
             return;
         }
@@ -95,11 +132,6 @@ impl<I: InstructionDecoder> BreadboardState<I> {
 
         for module in self.modules.iter_mut() {
             module.bus_read(self.cw, self.bus);
-        }
-
-        self.decoder.step();
-        if self.cw.has(ControlFlag::NextInstruction) {
-            self.decoder.reset_counter();
         }
     }
 
@@ -153,7 +185,7 @@ impl<I: InstructionDecoder> BreadboardState<I> {
     }
 }
 
-fn write_sample_program(ram: &mut [u8; 16]) {
+pub fn write_sample_program(ram: &mut [u8; 16]) {
     // Increments A to 255 then decrements it down to 0 and repeats
     ram[0x0] = 0xe0; // OUT
     ram[0x1] = 0x2f; // ADD 15

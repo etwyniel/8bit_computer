@@ -1,7 +1,11 @@
 use super::{ControlFlag, ControlWord, Module};
 use crate::graphics::*;
-use crate::shareable::{Shareable, Shared};
+use crate::shareable::{Share, Shareable, Shared};
+use std::convert::AsRef;
 use std::fmt::{self, Display, Formatter};
+use std::fs::File;
+use std::io::{self, BufReader, Read};
+use std::path::Path;
 
 /// Implementors are expected to own references to the necessary registers
 pub trait InstructionDecoder {
@@ -13,7 +17,7 @@ pub trait InstructionDecoder {
 
 #[derive(Debug)]
 pub struct SimpleInstructionDecoder {
-    counter: u8,
+    counter: Shareable<u8>,
     instruction_register: Shared<u8>,
 }
 
@@ -21,7 +25,7 @@ pub struct SimpleInstructionDecoder {
 impl SimpleInstructionDecoder {
     pub fn new(instruction_register: Shared<u8>) -> SimpleInstructionDecoder {
         SimpleInstructionDecoder {
-            counter: 0,
+            counter: Shareable::new(0),
             instruction_register,
         }
     }
@@ -33,7 +37,7 @@ impl InstructionDecoder for SimpleInstructionDecoder {
         use ControlFlag::*;
 
         let instruction = self.instruction_register.get() >> 4;
-        match (instruction, self.counter) {
+        match (instruction, self.counter.get()) {
             (_, 0) => CounterOut | MemoryAddressIn,
             (_, 1) => RamOut | InstructionRegisterIn | CounterEnable,
 
@@ -44,12 +48,12 @@ impl InstructionDecoder for SimpleInstructionDecoder {
             // ADD
             (0x2, 2) => InstructionRegisterOut | MemoryAddressIn,
             (0x2, 3) => RamOut | BRegisterIn,
-            (0x2, 4) => SumOut | ARegisterIn,
+            (0x2, 4) => SumOut | ARegisterIn | FlagRegisterIn,
 
             // SUB
             (0x3, 2) => InstructionRegisterOut | MemoryAddressIn,
             (0x3, 3) => RamOut | BRegisterIn,
-            (0x3, 4) => Subtract | SumOut | ARegisterIn,
+            (0x3, 4) => Subtract | SumOut | ARegisterIn | FlagRegisterIn,
 
             // STA
             (0x4, 2) => InstructionRegisterOut | MemoryAddressIn,
@@ -71,36 +75,46 @@ impl InstructionDecoder for SimpleInstructionDecoder {
     }
 
     fn step(&mut self) {
-        self.counter = (self.counter + 1) % 5;
+        self.counter.set((self.counter.get() + 1) % 5);
     }
 
     fn get_counter(&self) -> usize {
-        self.counter as usize
+        self.counter.get() as usize
     }
 
     fn reset_counter(&mut self) {
-        self.counter = 0;
+        self.counter.set(0);
+    }
+}
+
+impl Share<u8> for SimpleInstructionDecoder {
+    fn share(&self) -> Shared<u8> {
+        self.counter.share()
     }
 }
 
 pub struct BranchingInstructionDecoder {
     counter: Shareable<u8>,
     instruction_register: Shared<u8>,
-    carry: Shared<bool>,
-    zero: Shared<bool>,
+    flags: Shared<u8>,
 }
 
 impl BranchingInstructionDecoder {
-    pub fn new(instruction_register: Shared<u8>, carry: Shared<bool>, zero: Shared<bool>) -> Self {
+    pub fn new(instruction_register: Shared<u8>, flags: Shared<u8>) -> Self {
         BranchingInstructionDecoder {
             counter: Shareable::new(0),
             instruction_register,
-            carry,
-            zero,
+            flags,
         }
     }
 
     pub fn share_counter(&self) -> Shared<u8> {
+        self.counter.share()
+    }
+}
+
+impl Share<u8> for BranchingInstructionDecoder {
+    fn share(&self) -> Shared<u8> {
         self.counter.share()
     }
 }
@@ -110,8 +124,9 @@ impl InstructionDecoder for BranchingInstructionDecoder {
         use ControlFlag::*;
 
         let instruction = self.instruction_register.get() >> 4;
-        let carry = self.carry.get();
-        let zero = self.zero.get();
+        let flags = self.flags.get();
+        let carry = flags & 0b10 > 0;
+        let zero = flags & 0b01 > 0;
         match (instruction, self.counter.get()) {
             (_, 0) => CounterOut | MemoryAddressIn,
             (_, 1) => RamOut | InstructionRegisterIn | CounterEnable,
@@ -123,12 +138,12 @@ impl InstructionDecoder for BranchingInstructionDecoder {
             // ADD
             (0x2, 2) => InstructionRegisterOut | MemoryAddressIn,
             (0x2, 3) => RamOut | BRegisterIn,
-            (0x2, 4) => SumOut | ARegisterIn | NextInstruction,
+            (0x2, 4) => SumOut | ARegisterIn | NextInstruction | FlagRegisterIn,
 
             // SUB
             (0x3, 2) => InstructionRegisterOut | MemoryAddressIn,
             (0x3, 3) => RamOut | BRegisterIn,
-            (0x3, 4) => Subtract | SumOut | ARegisterIn | NextInstruction,
+            (0x3, 4) => Subtract | SumOut | ARegisterIn | NextInstruction | FlagRegisterIn,
 
             // STA
             (0x4, 2) => InstructionRegisterOut | MemoryAddressIn,
@@ -155,6 +170,72 @@ impl InstructionDecoder for BranchingInstructionDecoder {
             (0xf, 2) => ControlWord(Hlt as u32),
             _ => ControlWord(0),
         }
+    }
+
+    fn step(&mut self) {
+        self.counter.set((self.counter.get() + 1) % 5);
+    }
+
+    fn get_counter(&self) -> usize {
+        self.counter.get() as usize
+    }
+
+    fn reset_counter(&mut self) {
+        self.counter.set(0);
+    }
+}
+
+pub struct MicrocodeDecoder {
+    counter: Shareable<u8>,
+    instruction_register: Shared<u8>,
+    flags: Shared<u8>,
+    microcode: Box<[u32; 1 << 12]>,
+}
+
+impl MicrocodeDecoder {
+    pub fn new<R: Read>(
+        instruction_register: Shared<u8>,
+        flags: Shared<u8>,
+        mut reader: R,
+    ) -> io::Result<Self> {
+        let mut decoder = MicrocodeDecoder {
+            counter: Shareable::new(0),
+            instruction_register,
+            flags,
+            microcode: Box::new([0; 1 << 12]),
+        };
+        for address in 0..(1 << 12) {
+            let mut buf = [0u8; 4];
+            reader.read_exact(&mut buf)?;
+            decoder.microcode[address] = u32::from_le_bytes(buf);
+        }
+        Ok(decoder)
+    }
+
+    pub fn from_file<P: AsRef<Path>>(
+        instruction_register: Shared<u8>,
+        flags: Shared<u8>,
+        path: P,
+    ) -> io::Result<Self> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+        Self::new(instruction_register, flags, &mut reader)
+    }
+}
+
+impl Share<u8> for MicrocodeDecoder {
+    fn share(&self) -> Shared<u8> {
+        self.counter.share()
+    }
+}
+
+impl InstructionDecoder for MicrocodeDecoder {
+    fn decode(&self) -> ControlWord {
+        let instruction = self.instruction_register.get() >> 4;
+        let address = ((self.flags.get() as u16 & 0b1111) << 8)
+            | ((instruction as u16 & 0b1111) << 4)
+            | (self.counter.get() as u16 & 0b1111);
+        ControlWord(self.microcode[address as usize])
     }
 
     fn step(&mut self) {

@@ -1,7 +1,6 @@
 use super::*;
 use crate::graphics::*;
-use crate::shareable::{Shareable, Shared};
-use std::default::Default;
+use crate::shareable::{Share, Shareable, Shared};
 use std::fmt::{self, Display, Formatter};
 use std::num::Wrapping;
 
@@ -10,8 +9,7 @@ pub struct Alu {
     pub a: Shared<u8>,
     pub b: Shared<u8>,
     pub result: u8,
-    pub carry: Shareable<bool>,
-    pub zero: Shareable<bool>,
+    pub flags: Shareable<u8>,
 }
 
 impl Alu {
@@ -20,17 +18,18 @@ impl Alu {
             a,
             b,
             result: 0,
-            carry: Default::default(),
-            zero: Default::default(),
+            flags: Shareable::new(0b00),
         }
     }
 
-    pub fn share_carry(&self) -> Shared<bool> {
-        self.carry.share()
+    pub fn get_labels(&self) -> [&'static str; 8] {
+        ["", "", "", "", "", "", "C", "Z"]
     }
+}
 
-    pub fn share_zero(&self) -> Shared<bool> {
-        self.zero.share()
+impl Share<u8> for Alu {
+    fn share(&self) -> Shared<u8> {
+        self.flags.share()
     }
 }
 
@@ -47,12 +46,22 @@ impl Module for Alu {
             Wrapping(rhs)
         };
         self.result = res as u8;
-        self.carry.set(res > 0xff);
+        if cw.has(ControlFlag::FlagRegisterIn) {
+            if res > 0xff {
+                self.flags.set(self.flags.get() | 0b10);
+            } else {
+                self.flags.set(self.flags.get() & !0b10);
+            }
+            if self.result == 0 {
+                self.flags.set(self.flags.get() | 0b01);
+            } else {
+                self.flags.set(self.flags.get() & !0b01);
+            }
+        }
     }
 
     fn reset(&mut self) {
-        self.carry.set(false);
-        self.zero.set(false);
+        self.flags.set(0);
     }
 
     fn bus_write_flag(&self) -> ControlFlag {
